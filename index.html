@@ -56,7 +56,14 @@ function toggleMenu(){document.querySelector(".nav").style.display=document.quer
 function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(id)?.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadConversations();if(id==="notifications")loadNotifications();if(id==="profile")loadProfile();if(id==="dashboard")loadDashboard();if(id==="wallet"){loadWallet();loadTransactions()}if(id==="admin")loadAdmin();if(id==="support")loadSupport()}
 function nav(){const n=$("nav");if(!currentUser){n.innerHTML='<button onclick="show(\'home\')">Home</button><button onclick="show(\'jobs\')">Find Work</button><button onclick="show(\'about\')">About</button><button onclick="show(\'auth\')">Login</button>';return}n.innerHTML='<button onclick="show(\'dashboard\')">Dashboard</button><button onclick="show(\'jobs\')">Find Work</button><button onclick="show(\'talent\')">Hire</button><button onclick="show(\'wallet\')">Wallet</button><button onclick="show(\'messages\')">Messages</button><button onclick="show(\'profile\')">Profile</button><button onclick="show(\'settings\')">Settings</button><button onclick="show(\'support\')">Support</button><button class="danger" onclick="logout()">Logout</button>'}
 function toggleAuth(){authMode=authMode==="signup"?"login":"signup";$("authTitle").textContent=authMode==="signup"?"Create MAVORA account":"Login to MAVORA";$("signupFields").style.display=authMode==="signup"?"block":"none"}
-async function authSubmit(){const email=$("email").value.trim(),password=$("password").value,fullName=$("fullName").value.trim(),username=$("username").value.trim().toLowerCase();if(!email||password.length<8)return toast("Use a valid email and password of at least 8 characters.",true);if(authMode==="signup"){if(!fullName||!username)return toast("Enter your name and username.",true);if(!$("agreeTerms").checked)return toast("Accept the MAVORA rules to continue.",true);const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:fullName,username}}});if(error)return toast(error.message,true);if(data.user){
+async function authSubmit(){const email=$("email").value.trim(),password=$("password").value,fullName=$("fullName").value.trim(),username=$("username").value.trim().toLowerCase();if(!email||password.length<8)return toast("Use a valid email and password of at least 8 characters.",true);if(authMode==="signup"){if(!fullName||!username)return toast("Enter your name and username.",true);if(!$("agreeTerms").checked)return toast("Accept the MAVORA rules to continue.",true);options:{
+  emailRedirectTo:"https://marviano-png.github.io/MAVORA/",
+  data:{
+    email,
+    full_name:fullName,
+    username
+  }
+}if(error)return toast(error.message,true);if(data.user){
   if(data.session){
     const {error:e}=await sb.from("profiles").upsert({
       id:data.user.id,
