@@ -74,6 +74,7 @@ const EMAILJS_SERVICE_ID="service_thx3459";
 const EMAILJS_TEMPLATE_ID="template_hrc9p7b";
 const SITE_URL="https://marviano-png.github.io/MAVORA/";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+alert("MAVORA JavaScript is running");
 if(window.emailjs&&!EMAILJS_PUBLIC_KEY.startsWith("YOUR_"))emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
 let currentUser=null,myLocation=null,authMode="signup",jobTimer=null;
 const $=id=>document.getElementById(id);
