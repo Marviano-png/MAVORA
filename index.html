@@ -260,9 +260,8 @@ async function loadApplications(){
 }
 async function loadWork(){
  const {data,error}=await sb.from("applications").select("*,jobs(title,description,budget)").eq("worker_id",currentUser.id).in("status",["hired","accepted"]).order("updated_at",{ascending:false});
- <script>
-async function loadWork(){
-  const {data,error}=await sb.from("applications")
+ 
+
     .select("*,jobs(title,description,budget)")
     .eq("worker_id",currentUser.id)
     .in("status",["hired","accepted"])
