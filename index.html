@@ -260,5 +260,1099 @@ async function loadApplications(){
 }
 async function loadWork(){
  const {data,error}=await sb.from("applications").select("*,jobs(title,description,budget)").eq("worker_id",currentUser.id).in("status",["hired","accepted"]).order("updated_at",{ascending:false});
- $("workList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(a=>`<div class="card"><h3>${esc(a.jobs?.title||"Work")}</h3><p>${esc(a.jobs?.description||"")}</p><span class="badge">${esc(a.work_status||"not_started")}</span><textarea id="sub_${a.id}" placeholder="Describe completed work">${esc(a.work_submission||"")}</textarea><input id="file_${a.id}" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.zip"><div class="actions"><button class="btn" onclick="submitWork('${a.id}')">Submit Work</button><button class="btn warning" onclick="requestRevision('${a.id}')">Request Revision</button><button class="btn ghost" onclick="openDispute('${a.id}')">Dispute</button></div></div>`).join(""):"<div class='empty'>No active work.</div>"
- 
+ <script>
+async function loadWork(){
+  const {data,error}=await sb.from("applications")
+    .select("*,jobs(title,description,budget)")
+    .eq("worker_id",currentUser.id)
+    .in("status",["hired","accepted"])
+    .order("updated_at",{ascending:false});
+
+  $("workList").innerHTML=error
+    ? `<div class='notice error'>${esc(error.message)}</div>`
+    : data?.length
+      ? data.map(a=>`
+        <div class="card">
+          <h3>${esc(a.jobs?.title||"Work")}</h3>
+          <p>${esc(a.jobs?.description||"")}</p>
+          <p><b>Agreed amount:</b> ₦${Number(a.proposed_price||a.jobs?.budget||0).toLocaleString()}</p>
+          <span class="badge">${esc(a.work_status||"not_started")}</span>
+
+          <textarea id="sub_${a.id}" placeholder="Describe completed work">${esc(a.work_submission||"")}</textarea>
+
+          <input id="file_${a.id}" type="file"
+            accept="image/*,.pdf,.doc,.docx,.txt,.zip">
+
+          <div class="actions">
+            <button class="btn" onclick="submitWork('${a.id}')">
+              Submit Work
+            </button>
+
+            <button class="btn warning" onclick="requestRevision('${a.id}')">
+              Request Revision
+            </button>
+
+            <button class="btn ghost" onclick="openDispute('${a.id}')">
+              Dispute
+            </button>
+          </div>
+        </div>
+      `).join("")
+      : "<div class='empty'>No active work.</div>";
+}
+
+async function submitWork(id){
+  const sub=$("sub_"+id).value.trim();
+  const file=$("file_"+id).files[0];
+
+  if(!sub&&!file)
+    return toast("Add a submission or file.",true);
+
+  if(file){
+    if(file.size>15*1024*1024)
+      return toast("File is too large. Maximum 15MB.",true);
+
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=`${currentUser.id}/${id}/${Date.now()}_${safe}`;
+
+    const {error}=await sb.storage
+      .from("mavora-work")
+      .upload(path,file,{upsert:false});
+
+    if(error)return toast(error.message,true);
+
+    const {error:e}=await sb.from("work_files").insert({
+      application_id:id,
+      uploader_id:currentUser.id,
+      file_path:path,
+      file_name:file.name,
+      mime_type:file.type,
+      size_bytes:file.size
+    });
+
+    if(e)return toast(e.message,true);
+  }
+
+  const {error}=await sb.rpc("submit_work",{
+    p_application_id:id,
+    p_submission:sub
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Work submitted successfully.");
+  loadWork();
+}
+
+function requestRevision(id){
+  openDispute(id,"revision");
+}
+
+function openDispute(id,kind="dispute"){
+  $("modalTitle").textContent=
+    kind==="revision" ? "Request Revision" : "Open Dispute";
+
+  $("modalBody").innerHTML=`
+    <p class="muted">
+      ${kind==="revision"
+        ?"Explain what needs to be changed."
+        :"Explain the problem clearly so MAVORA can review it."}
+    </p>
+
+    <textarea id="issueNote"
+      placeholder="Write your explanation"></textarea>
+
+    <button class="btn warning"
+      onclick="sendIssue('${id}','${kind}')">
+      Submit
+    </button>
+  `;
+
+  openModal();
+}
+
+async function sendIssue(id,kind){
+  const note=$("issueNote").value.trim();
+
+  if(!note)
+    return toast("Write a note.",true);
+
+  if(kind==="revision"){
+
+    const {error}=await sb.rpc("request_work_revision",{
+      p_application_id:id,
+      p_note:note
+    });
+
+    if(error)return toast(error.message,true);
+
+  }else{
+
+    const {error}=await sb.from("disputes").insert({
+      application_id:id,
+      opened_by:currentUser.id,
+      reason:note,
+      status:"open"
+    });
+
+    if(error)return toast(error.message,true);
+  }
+
+  closeModal();
+
+  toast(
+    kind==="revision"
+      ? "Revision request sent."
+      : "Dispute opened."
+  );
+
+  loadWork();
+}
+
+async function loadProfile(){
+  const {data,error}=await sb.from("profiles")
+    .select("*")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(error)return toast(error.message,true);
+  if(!data)return;
+
+  $("pName").value=data.full_name||"";
+  $("pUsername").value=data.username||"";
+  $("pTitle").value=data.professional_title||"";
+  $("pSkills").value=data.skills||"";
+  $("pAbout").value=data.about||"";
+  $("pState").value=data.state||"";
+
+  populateLocation("pLga",data.state,data.lga);
+  populateLocation("pCity",data.state,data.city);
+  populateLocation("pArea",data.state,data.area);
+
+  $("pAvailability").value=data.availability||"available";
+  $("pRadius").value=data.service_radius_km||"";
+  $("nearbyOpt").checked=!!data.nearby_enabled;
+
+  $("profileTrust").innerHTML=`
+    <span class="badge">
+      Email: ${currentUser.email_confirmed_at?"Verified":"Pending"}
+    </span>
+
+    <span class="badge">
+      Phone: ${currentUser.phone?"Added":"Not added"}
+    </span>
+
+    <span class="badge">
+      Identity: ${data.identity_status||"Not verified"}
+    </span>
+
+    <span class="badge">
+      Rating: ${Number(data.rating||0).toFixed(1)}
+    </span>
+  `;
+}
+
+async function saveProfile(){
+  const payload={
+    id:currentUser.id,
+    full_name:$("pName").value.trim(),
+    username:$("pUsername").value.trim().toLowerCase(),
+    professional_title:$("pTitle").value.trim(),
+    skills:$("pSkills").value.trim(),
+    state:$("pState").value,
+    lga:$("pLga").value,
+    city:$("pCity").value,
+    area:$("pArea").value,
+    about:$("pAbout").value.trim(),
+    availability:$("pAvailability").value,
+    service_radius_km:Number($("pRadius").value||0)||null,
+    nearby_enabled:$("nearbyOpt").checked,
+    updated_at:new Date().toISOString()
+  };
+
+  const {error}=await sb.rpc("save_my_profile",{
+    p_profile:payload
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Profile saved.");
+  loadProfile();
+}
+
+const LOC={
+  Lagos:{
+    lga:["Agege","Alimosho","Ikeja","Ikorodu","Kosofe","Lagos Island","Lagos Mainland","Oshodi-Isolo","Surulere","Other"],
+    city:["Ikeja","Alimosho","Agege","Other"],
+    area:["Egbeda","Iyana Ipaja","Alimosho","Other"]
+  },
+
+  Ogun:{
+    lga:["Ado-Odo/Ota","Ifo","Obafemi Owode","Other"],
+    city:["Ota","Ifo","Other"],
+    area:["Ota","Sango","Iyana Iyesi","High Court Area","Other"]
+  },
+
+  Ondo:{
+    lga:["Akure South","Akure North","Ondo West","Other"],
+    city:["Akure","Ondo","Other"],
+    area:["Other"]
+  },
+
+  Oyo:{
+    lga:["Ibadan North","Ibadan South-West","Other"],
+    city:["Ibadan","Other"],
+    area:["Other"]
+  },
+
+  Osun:{
+    lga:["Osogbo","Ife Central","Other"],
+    city:["Osogbo","Ile-Ife","Other"],
+    area:["Other"]
+  },
+
+  Other:{
+    lga:["Other"],
+    city:["Other"],
+    area:["Other"]
+  }
+};
+
+function populateLocation(id,state,value){
+  const el=$(id);
+  if(!el)return;
+
+  const key=LOC[state]||LOC.Other;
+
+  const arr=id.toLowerCase().includes("lga")
+    ?key.lga
+    :id.toLowerCase().includes("city")
+      ?key.city
+      :key.area;
+
+  el.innerHTML=
+    '<option value="">Select</option>'+
+    arr.map(x=>
+      `<option value="${esc(x)}" ${x===value?"selected":""}>${esc(x)}</option>`
+    ).join("");
+}
+
+["pState","jobState"].forEach(id=>{
+  $(id)?.addEventListener("change",e=>{
+    const p=id[0]==="p";
+
+    populateLocation(
+      p?"pLga":"jobLga",
+      e.target.value,
+      ""
+    );
+
+    populateLocation(
+      p?"pCity":"jobCity",
+      e.target.value,
+      ""
+    );
+
+    populateLocation(
+      p?"pArea":"jobArea",
+      e.target.value,
+      ""
+    );
+  });
+});
+
+async function loadTalent(){
+  let q=$("talentSearch")?.value.trim()||"";
+  let state=$("talentState")?.value||"";
+  let avail=$("talentAvailability")?.value||"";
+
+  let query=sb.from("profiles")
+    .select("id,full_name,username,professional_title,skills,state,lga,city,area,availability,rating,completed_jobs,nearby_enabled")
+    .neq(
+      "id",
+      currentUser?.id||"00000000-0000-0000-0000-000000000000"
+    )
+    .limit(50);
+
+  if(state&&state!=="Other")
+    query=query.eq("state",state);
+
+  if(avail)
+    query=query.eq("availability",avail);
+
+  if(q){
+    const safe=q.replace(/[%(),]/g," ").trim();
+
+    if(safe){
+      query=query.or(
+        `full_name.ilike.%${safe}%,professional_title.ilike.%${safe}%,skills.ilike.%${safe}%`
+      );
+    }
+  }
+
+  const {data,error}=await query;
+
+  if(error)
+    return $("talentList").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
+
+  $("talentList").innerHTML=data?.length
+    ?data.map(p=>`
+      <div class="card">
+        <h3>${esc(p.full_name||"Worker")}</h3>
+
+        <p>
+          <b>${esc(p.professional_title||"")}</b>
+        </p>
+
+        <p>${esc(p.skills||"")}</p>
+
+        <p>
+          ⭐ ${Number(p.rating||0).toFixed(1)}
+          · ${Number(p.completed_jobs||0)} completed
+          · ${esc(p.availability||"")}
+        </p>
+
+        <p class="muted">
+          📍 ${esc([p.state,p.lga,p.city].filter(Boolean).join(" • "))}
+        </p>
+
+        <button class="btn"
+          onclick="viewTalent('${p.id}')">
+          View Profile
+        </button>
+      </div>
+    `).join("")
+    :"<div class='empty'>No workers found.</div>";
+}
+
+async function viewTalent(id){
+  const {data:p,error}=await sb.from("profiles")
+    .select("*")
+    .eq("id",id)
+    .single();
+
+  if(error)return toast(error.message,true);
+
+  $("modalTitle").textContent=p.full_name||"Worker";
+
+  $("modalBody").innerHTML=`
+    <p><b>${esc(p.professional_title||"")}</b></p>
+
+    <p>${esc(p.about||"")}</p>
+
+    <p>${esc(p.skills||"")}</p>
+
+    <p>
+      ⭐ ${Number(p.rating||0).toFixed(1)}
+      · ${Number(p.completed_jobs||0)} completed
+    </p>
+
+    <p class="muted">
+      📍 ${esc([p.state,p.lga,p.city].filter(Boolean).join(" • "))}
+    </p>
+
+    <button class="btn"
+      onclick="show('post');closeModal()">
+      Post a job for this worker
+    </button>
+  `;
+
+  openModal();
+}
+
+async function saveJob(id){
+  if(!currentUser)return show("auth");
+
+  const {error}=await sb.from("saved_jobs").upsert(
+    {
+      user_id:currentUser.id,
+      job_id:id
+    },
+    {
+      onConflict:"user_id,job_id"
+    }
+  );
+
+  if(error)return toast(error.message,true);
+
+  toast("Job saved.");
+}
+
+async function saveSearch(){
+  if(!currentUser)return show("auth");
+
+  const q=$("jobSearch").value.trim();
+
+  const filters={
+    type:$("jobType").value,
+    state:$("jobStateFilter").value,
+    budget:$("jobBudgetFilter").value,
+    sort:$("jobSort").value
+  };
+
+  const {error}=await sb.from("saved_searches").insert({
+    user_id:currentUser.id,
+    name:q||"My saved search",
+    query:q,
+    filters
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Search saved.");
+}
+
+async function loadConversations(){
+  const {data,error}=await sb.from("messages")
+    .select("*")
+    .or(
+      `sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`
+    )
+    .order("created_at",{ascending:true});
+
+  if(error)
+    return $("conversationList").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
+
+  $("conversationList").innerHTML=data?.length
+    ?data.map(m=>`
+      <div class="message ${m.sender_id===currentUser.id?"mine":""}">
+        <p>${esc(m.message)}</p>
+        <small>${new Date(m.created_at).toLocaleString()}</small>
+      </div>
+    `).join("")
+    :"<div class='empty'>No messages yet.</div>";
+
+  const ids=[
+    ...new Set(
+      (data||[]).map(
+        m=>m.sender_id===currentUser.id
+          ?m.recipient_id
+          :m.sender_id
+      )
+    )
+  ];
+
+  $("recipient").innerHTML=
+    ids.map(id=>
+      `<option value="${esc(id)}">${esc(id)}</option>`
+    ).join("")
+    ||'<option value="">No contacts yet</option>';
+}
+
+function loadMessages(){
+  if(!currentUser)return;
+  loadConversations();
+}
+
+async function sendMessage(){
+  const to=$("recipient").value;
+  const text=$("messageText").value.trim();
+
+  if(!to||!text)
+    return toast("Choose a contact and write a message.",true);
+
+  const {error}=await sb.from("messages").insert({
+    sender_id:currentUser.id,
+    recipient_id:to,
+    message:text
+  });
+
+  if(error)return toast(error.message,true);
+
+  $("messageText").value="";
+
+  loadConversations();
+
+  toast("Message sent.");
+}
+
+async function loadNotifications(){
+  const {data,error}=await sb.from("notifications")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  $("notificationList").innerHTML=error
+    ?`<div class='notice error'>${esc(error.message)}</div>`
+    :data?.length
+      ?data.map(n=>`
+        <div class="list-item">
+          <b>
+            ${n.is_read?"":"● "}
+            ${esc(n.title||"MAVORA")}
+          </b>
+
+          <p>${esc(n.message||"")}</p>
+
+          <small class="muted">
+            ${new Date(n.created_at).toLocaleString()}
+          </small>
+        </div>
+      `).join("")
+      :"<div class='empty'>No notifications.</div>";
+}
+
+async function markNotificationsRead(){
+  const {error}=await sb.from("notifications")
+    .update({is_read:true})
+    .eq("user_id",currentUser.id);
+
+  if(error)return toast(error.message,true);
+
+  loadNotifications();
+}
+
+async function useLocation(){
+  if(!navigator.geolocation)
+    return toast("Location is not supported.",true);
+
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      myLocation={
+        lat:p.coords.latitude,
+        lng:p.coords.longitude
+      };
+
+      $("locationText").textContent=
+        " Location enabled for this session.";
+
+      toast("Location available.");
+    },
+    ()=>toast("Location permission was not granted.",true),
+    {
+      enableHighAccuracy:false,
+      maximumAge:300000
+    }
+  );
+}
+
+async function loadWallet(){
+  const {data,error}=await sb.from("wallets")
+    .select(
+      "available_balance,pending_balance,held_balance,spending_balance,currency"
+    )
+    .eq("user_id",currentUser.id)
+    .maybeSingle();
+
+  if(error)
+    return $("walletCards").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
+
+  const w=data||{};
+
+  $("walletCards").innerHTML=`
+    <div class='card'>
+      <b>Available</b>
+      <div class='stat'>
+        ₦${Number(w.available_balance||0).toLocaleString()}
+      </div>
+    </div>
+
+    <div class='card'>
+      <b>Pending</b>
+      <div class='stat'>
+        ₦${Number(w.pending_balance||0).toLocaleString()}
+      </div>
+    </div>
+
+    <div class='card'>
+      <b>Held</b>
+      <div class='stat'>
+        ₦${Number(w.held_balance||0).toLocaleString()}
+      </div>
+    </div>
+
+    <div class='card'>
+      <b>Spending</b>
+      <div class='stat'>
+        ₦${Number(w.spending_balance||0).toLocaleString()}
+      </div>
+    </div>
+  `;
+}
+
+async function loadTransactions(){
+  const {data,error}=await sb.from("transactions")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  $("transactionList").innerHTML=error
+    ?`<div class='notice error'>${esc(error.message)}</div>`
+    :data?.length
+      ?data.map(t=>`
+        <div class="list-item">
+          <b>${esc(t.type||"Transaction")}</b>
+          <span class="badge">${esc(t.status||"")}</span>
+          <p>
+            ₦${Number(t.amount||0).toLocaleString()}
+            · ${esc(t.reference||"")}
+          </p>
+          <small class="muted">
+            ${new Date(t.created_at).toLocaleString()}
+          </small>
+        </div>
+      `).join("")
+      :"<div class='empty'>No transactions yet.</div>";
+}
+
+function openDeposit(){
+  if(!currentUser)return show("auth");
+
+  $("modalTitle").textContent="Deposit to MAVORA Wallet";
+
+  $("modalBody").innerHTML=`
+    <p>
+      Choose a configured payment method.
+      The actual payment must be initiated through
+      the connected provider.
+    </p>
+
+    <input id="depositAmount"
+      type="number"
+      min="100"
+      placeholder="Amount (₦)">
+
+    <select id="depositMethod">
+      <option>Bank Transfer</option>
+      <option>Card</option>
+    </select>
+
+    <button class="btn"
+      onclick="startDeposit()">
+      Continue
+    </button>
+  `;
+
+  openModal();
+}
+
+async function startDeposit(){
+  const amount=Number($("depositAmount").value);
+
+  if(!Number.isFinite(amount)||amount<100)
+    return toast("Enter a valid amount.",true);
+
+  toast(
+    "Wallet deposits require the configured payment provider flow.",
+    true
+  );
+
+  closeModal();
+}
+
+function openWithdraw(){
+  if(!currentUser)return show("auth");
+
+  $("modalTitle").textContent="Withdraw";
+
+  $("modalBody").innerHTML=`
+    <p>
+      Withdrawals should only go to a verified
+      bank account configured in the secure payment backend.
+    </p>
+
+    <input id="withdrawAmount"
+      type="number"
+      min="100"
+      placeholder="Amount (₦)">
+
+    <button class="btn"
+      onclick="requestWithdraw()">
+      Request withdrawal
+    </button>
+  `;
+
+  openModal();
+}
+
+async function requestWithdraw(){
+  const amount=Number($("withdrawAmount").value);
+
+  if(!Number.isFinite(amount)||amount<100)
+    return toast("Enter a valid amount.",true);
+
+  const {error}=await sb.rpc("request_withdrawal",{
+    p_amount:amount
+  });
+
+  if(error)return toast(error.message,true);
+
+  closeModal();
+
+  toast("Withdrawal request submitted.");
+}
+
+async function submitSupport(){
+  if(!currentUser)return show("auth");
+
+  const subject=$("supportSubject").value.trim();
+  const message=$("supportMessage").value.trim();
+
+  if(!subject||!message)
+    return toast("Enter subject and message.",true);
+
+  const {error}=await sb.from("support_tickets").insert({
+    user_id:currentUser.id,
+    type:$("supportType").value,
+    subject,
+    message,
+    status:"open"
+  });
+
+  if(error)return toast(error.message,true);
+
+  $("supportSubject").value="";
+  $("supportMessage").value="";
+
+  toast("Support request submitted.");
+
+  loadSupport();
+}
+
+async function loadSupport(){
+  if(!currentUser)return;
+
+  $("supportList").innerHTML=
+    "<p class='muted'>Loading support tickets...</p>";
+
+  const {data,error}=await sb.from("support_tickets")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  $("supportList").innerHTML=error
+    ?`<div class='notice error'>${esc(error.message)}</div>`
+    :data?.length
+      ?data.map(t=>`
+        <div class='list-item'>
+          <b>${esc(t.subject)}</b>
+          <span class='badge'>${esc(t.status)}</span>
+          <p>${esc(t.message)}</p>
+        </div>
+      `).join("")
+      :"<p class='muted'>No support tickets.</p>";
+}
+
+async function reportJob(jobId){
+  if(!currentUser)return show("auth");
+
+  $("modalTitle").textContent="Report Job";
+
+  $("modalBody").innerHTML=`
+    <textarea id="reportReason"
+      placeholder="Why should MAVORA review this job?"></textarea>
+
+    <button class="btn danger"
+      onclick="submitReport('job','${jobId}')">
+      Submit report
+    </button>
+  `;
+
+  openModal();
+}
+
+async function submitReport(type,target){
+  const reason=$("reportReason").value.trim();
+
+  if(!reason)
+    return toast("Give a reason.",true);
+
+  const {error}=await sb.from("reports").insert({
+    reporter_id:currentUser.id,
+    target_type:type,
+    target_id:target,
+    reason,
+    status:"open"
+  });
+
+  if(error)return toast(error.message,true);
+
+  closeModal();
+
+  toast("Report submitted for review.");
+}
+
+async function showSessions(){
+  const {data,error}=await sb.auth.getSession();
+
+  $("modalTitle").textContent="Security Session";
+
+  $("modalBody").innerHTML=error
+    ?`<div class="notice error">${esc(error.message)}</div>`
+    :`
+      <div class="notice successbox">
+        <strong>Current session active</strong>
+        ${data.session?"Yes":"No"}
+      </div>
+
+      <p class="muted">
+        This browser session is managed by Supabase Auth.
+        Full device/session history requires server-side
+        session auditing.
+      </p>
+
+      <button class="btn danger"
+        onclick="logoutEverywhere();closeModal()">
+        Log out everywhere
+      </button>
+    `;
+
+  openModal();
+}
+
+async function loadAdmin(){
+  const {data:p,error}=await sb.from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(error||p?.role!=="admin"){
+    return $("adminArea").innerHTML=
+      '<div class="notice error">Admin access required.</div>';
+  }
+
+  const tables=[
+    "profiles",
+    "jobs",
+    "applications",
+    "contracts",
+    "transactions",
+    "withdrawals",
+    "reports",
+    "disputes",
+    "support_tickets"
+  ];
+
+  const counts=await Promise.all(
+    tables.map(x=>
+      sb.from(x).select("id",{count:"exact",head:true})
+    )
+  );
+
+  $("adminArea").innerHTML=
+    '<div class="grid">'+
+    tables.map((t,i)=>`
+      <div class="card">
+        <h3>${t.replaceAll("_"," ")}</h3>
+        <div class="stat">${counts[i].count||0}</div>
+      </div>
+    `).join("")+
+    '</div>'+
+    `
+      <div class="notice">
+        <strong>Production admin rule</strong>
+        Financial changes, user suspension, verification
+        and disputes must be performed through secure
+        server-side RPCs with audit logs and role separation.
+      </div>
+    `;
+}
+
+/* =========================
+   PAYMENT FLOW
+   ========================= */
+
+async function chooseWorker(jobId,applicationId){
+  if(!currentUser)
+    return show("auth");
+
+  if(!confirm(
+    "Choose this worker and continue to payment?"
+  ))return;
+
+  const {data,error}=await sb.rpc("choose_worker",{
+    p_job_id:jobId,
+    p_application_id:applicationId
+  });
+
+  if(error)
+    return toast(error.message,true);
+
+  closeModal();
+
+  if(!data?.success){
+    return toast(
+      "Worker selection could not be completed.",
+      true
+    );
+  }
+
+  $("modalTitle").textContent="Payment Required";
+
+  $("modalBody").innerHTML=`
+    <div class="notice successbox">
+      <strong>Worker selected successfully.</strong>
+      <p>
+        Payment is required before the worker can begin.
+      </p>
+    </div>
+
+    <p>
+      <b>Agreed amount:</b>
+      ₦${Number(
+        data.payment_amount||
+        data.agreed_price||
+        0
+      ).toLocaleString()}
+    </p>
+
+    <div class="actions">
+
+      <button class="btn"
+        onclick="startJobPayment('${data.application_id}')">
+        Pay for Job
+      </button>
+
+      <button class="btn ghost"
+        onclick="closeModal();loadMyJobs()">
+        Pay Later
+      </button>
+
+    </div>
+  `;
+
+  openModal();
+
+  loadMyJobs();
+}
+
+async function startJobPayment(applicationId){
+  if(!currentUser)
+    return show("auth");
+
+  const {
+    data:sessionData,
+    error:sessionError
+  }=await sb.auth.getSession();
+
+  if(
+    sessionError||
+    !sessionData?.session
+  ){
+    return toast(
+      "Your session has expired. Please log in again.",
+      true
+    );
+  }
+
+  const {data,error}=await sb.functions.invoke(
+    "mavora-paystack",
+    {
+      body:{
+        application_id:applicationId
+      }
+    }
+  );
+
+  if(error){
+    return toast(
+      error.message||"Unable to start payment.",
+      true
+    );
+  }
+
+  if(!data?.authorization_url){
+    return toast(
+      data?.message||
+      "Payment could not be initialized.",
+      true
+    );
+  }
+
+  toast("Opening secure Paystack payment...");
+
+  window.location.href=data.authorization_url;
+}
+
+async function approveWork(id){
+  if(!currentUser)
+    return show("auth");
+
+  if(!confirm(
+    "Approve this work? Payment will only be released through the secure payment flow."
+  ))return;
+
+  const {data,error}=await sb.rpc(
+    "approve_work",
+    {
+      p_application_id:id
+    }
+  );
+
+  if(error)
+    return toast(error.message,true);
+
+  if(data?.success===false)
+    return toast(
+      data.message||"Work could not be approved.",
+      true
+    );
+
+  toast(
+    "Work approved. Payment release is now being processed."
+  );
+
+  loadWork();
+  loadMyJobs();
+}
+
+/* =========================
+   MODAL + AUTH
+   ========================= */
+
+function openModal(){
+  $("modal").classList.add("open");
+}
+
+function closeModal(){
+  $("modal").classList.remove("open");
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape")
+    closeModal();
+});
+
+$("modal").addEventListener("click",e=>{
+  if(e.target.id==="modal")
+    closeModal();
+});
+
+sb.auth.onAuthStateChange(
+  (event,session)=>{
+    if(event==="PASSWORD_RECOVERY"){
+      currentUser=session?.user||currentUser;
+      nav();
+      showPasswordRecovery();
+      return;
+    }
+
+    if(session?.user){
+      currentUser=session.user;
+      nav();
+    }else{
+      currentUser=null;
+      nav();
+    }
+  }
+);
+
+(async()=>{
+  const {data}=await sb.auth.getSession();
+
+  if(data.session){
+    currentUser=data.session.user;
+    nav();
+    show("dashboard");
+  }else{
+    nav();
+  }
+})();
+</script>
+</body>
+</html>
