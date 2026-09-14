@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#111827">
+<title>MAVORA — Work Marketplace</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#172033}
+header{background:#111827;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.logo{font-size:23px;font-weight:900}.nav{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.nav button,.btn{border:0;border-radius:10px;padding:10px 13px;cursor:pointer;background:#2563eb;color:#fff;font-weight:700}
+.nav button.secondary,.secondary{background:#374151}.danger{background:#dc2626!important}.success{background:#16a34a!important}.warning{background:#d97706!important}
+.ghost{background:#fff!important;color:#172033!important;border:1px solid #d1d5db!important}.btn:disabled{opacity:.55;cursor:not-allowed}
+main{max-width:1180px;margin:auto;padding:18px}.page{display:none}.page.active{display:block}.card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #00000009}
+.hero{padding:44px 18px;text-align:center}.hero h1{font-size:46px;margin:8px 0}.muted{color:#6b7280}.small{font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:160px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+input,textarea,select{width:100%;padding:11px;border:1px solid #d1d5db;border-radius:10px;margin:6px 0 12px;background:#fff;font:inherit}
+textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;margin:2px}
+.green{background:#dcfce7;color:#166534}.red{background:#fee2e2;color:#991b1b}.yellow{background:#fef3c7;color:#92400e}
+.notice{padding:12px;border-radius:10px;background:#eff6ff;margin:8px 0}.error{background:#fee2e2;color:#991b1b}.successbox{background:#dcfce7;color:#166534}
+.empty{text-align:center;padding:36px;color:#6b7280}.job-card{cursor:default}.job-card h3{margin:4px 0}.stat{font-size:28px;font-weight:900}
+.message{padding:10px;margin:7px 0;border-radius:12px;background:#f3f4f6}.message.mine{background:#dbeafe;margin-left:12%}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:50;padding:16px}.modal.open{display:flex}
+.modalbox{background:#fff;border-radius:16px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:20px}.bottom{position:sticky;bottom:0;background:#fff;padding:10px 0;margin-top:12px;border-top:1px solid #eee}
+.hide{display:none!important}.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}.tabs button{border:1px solid #ddd;background:#fff;border-radius:9px;padding:8px 10px}.tabs button.active{background:#111827;color:#fff}
+.footer{padding:30px 18px;text-align:center;color:#6b7280}.list-item{border:1px solid #eee;border-radius:12px;padding:12px;margin:8px 0;background:#fff}
+.progress{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden}.progress>span{display:block;height:100%;background:#2563eb}.risk{font-size:12px;color:#92400e}
+.searchline{position:relative}.searchline input{padding-right:40px}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:9px;border-bottom:1px solid #eee;text-align:left;font-size:13px}
+.toast{position:fixed;bottom:18px;right:18px;max-width:360px;background:#111827;color:#fff;padding:12px 15px;border-radius:11px;display:none;z-index:100}.toast.show{display:block}
+.check{display:flex;gap:8px;align-items:flex-start;font-weight:500}.check input{width:auto;margin:2px 0}.top-actions{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.pillnav{display:flex;gap:6px;overflow:auto;padding-bottom:5px}.pillnav button{white-space:nowrap}.notice strong{display:block;margin-bottom:4px}
+.click-card{cursor:pointer;transition:transform .12s,box-shadow .12s}.click-card:hover{transform:translateY(-1px);box-shadow:0 5px 18px #00000012}
+@media(max-width:700px){main{padding:10px}.hero h1{font-size:34px}.nav{display:none}.row>*{min-width:100%}.hero{padding:30px 10px}.modalbox{padding:15px}}
+</style>
+</head>
+<body>
+<header><div class="logo">MAVORA</div><div class="nav" id="nav"></div><button class="btn ghost" id="menuBtn" onclick="toggleMenu()">Menu</button></header>
+<main>
+<section id="home" class="page active">
+<div class="hero card"><h1>MAVORA</h1><p><b>Find work. Hire people. Get things done.</b></p><p class="muted">A marketplace for online, local and delivery work.</p><div class="actions" style="justify-content:center"><button class="btn" onclick="show('auth')">Get Started</button><button class="btn secondary" onclick="show('jobs')">Explore Jobs</button></div></div>
+<div class="grid"><div class="card"><h3>Find Work</h3><p>Discover jobs by skill, budget, work mode and location.</p></div><div class="card"><h3>Hire Someone</h3><p>Find workers, view profiles and make offers.</p></div><div class="card"><h3>Work Safely</h3><p>Applications, contracts, messages, submissions and records stay connected.</p></div><div class="card"><h3>Build Your Reputation</h3><p>Completed work can become verified work history and reviews.</p></div></div>
+<div class="card"><h2>How MAVORA works</h2><div class="grid"><div><b>1. Create your profile</b><p class="muted">Tell people what you can do or what your business needs.</p></div><div><b>2. Find or post work</b><p class="muted">Search opportunities or create a clear job brief.</p></div><div><b>3. Agree the work</b><p class="muted">Use applications, offers, contracts and milestones.</p></div><div><b>4. Complete and get paid</b><p class="muted">Submit proof, approve work and track payment status.</p></div></div></div>
+<div class="card"><h2>Trust & Safety</h2><p>MAVORA is designed around verification, clear records, secure communication, reporting, disputes and payment states. Never share your password, OTP or payment PIN with another user.</p><div class="actions"><button class="btn ghost" onclick="show('about')">About Us</button><button class="btn ghost" onclick="show('safety')">Safety Center</button><button class="btn ghost" onclick="show('help')">Help & Support</button></div></div>
+</section>
+<section id="about" class="page"><div class="card"><h2>About MAVORA</h2><p>MAVORA is a marketplace built to connect people who need work done with people who can do it, across online and local opportunities.</p><h3>Our mission</h3><p>Turn skills into opportunity, experience and income.</p><h3>What we believe</h3><ul><li>Clear job information builds trust.</li><li>People should have a fair way to discover opportunities.</li><li>Payments and work status should be understandable.</li><li>Safety and privacy are part of the product, not an afterthought.</li></ul><p class="muted">Company registration, office address, phone numbers, statistics and testimonials should only be published here after they are real and verified.</p></div></section>
+<section id="safety" class="page"><div class="card"><h2>MAVORA Safety Center</h2><div class="notice"><strong>Protect your account</strong>Use a strong password and never give anyone your password, OTP, PIN or authentication code.</div><div class="notice"><strong>Keep payment inside the official flow</strong>Be cautious if someone pressures you to pay through an unrelated account or link.</div><div class="notice"><strong>Local work</strong>Exact addresses should not be exposed publicly. Share only what is needed for the relevant job stage.</div><div class="notice"><strong>Report problems</strong>Use Report User, Report Job or Support when something looks suspicious.</div><div class="actions"><button class="btn" onclick="show('support')">Report a problem</button><button class="btn ghost" onclick="show('help')">Open Help & Support</button></div></div></section>
+<section id="help" class="page"><div class="card"><h2>Help & Support</h2><p>Find answers or send a support request directly to MAVORA.</p><div class="grid"><div class="card"><h3>Account</h3><p>Login, verification, password and profile issues.</p></div><div class="card"><h3>Jobs</h3><p>Posting, applications, hiring and cancellations.</p></div><div class="card"><h3>Payments</h3><p>Deposits, held funds, refunds and withdrawals.</p></div><div class="card"><h3>Disputes</h3><p>Submit evidence and keep the conversation linked to the job.</p></div></div><button class="btn" onclick="show('support')">Contact Support</button></div></section>
+<section id="auth" class="page"><div class="card"><h2 id="authTitle">Create MAVORA account</h2><div id="authMsg"></div><label>Email</label><input id="email" type="email" autocomplete="email"><label>Password</label><input id="password" type="password" autocomplete="new-password"><div id="signupFields"><label>Full name</label><input id="fullName" autocomplete="name"><label>Username</label><input id="username" placeholder="e.g. marviano"><label class="check"><input id="agreeTerms" type="checkbox"> I agree to use MAVORA lawfully and follow the platform rules.</label></div><button class="btn" onclick="authSubmit()">Continue</button> <button class="btn secondary" onclick="toggleAuth()">Switch login/signup</button><button class="btn ghost" onclick="resetPassword()">Forgot password?</button></div></section>
+<section id="dashboard" class="page"><div class="card top-actions"><div><h2 id="welcome">Welcome to MAVORA</h2><p class="muted">Your marketplace dashboard.</p></div><button class="btn" onclick="show('profile')">Complete Profile</button></div><div class="grid" id="stats"></div><div class="grid"><div class="card"><h3>Recommended Jobs</h3><div id="recommendedJobs"></div></div><div class="card"><h3>Quick Actions</h3><div class="actions"><button class="btn" onclick="show('jobs')">Find Work</button><button class="btn" onclick="show('post')">Post Job</button><button class="btn" onclick="show('talent')">Hire Someone</button><button class="btn" onclick="show('wallet')">Wallet</button></div></div></div></section>
+<section id="jobs" class="page"><div class="card"><div class="top-actions"><h2>Find Work</h2><button class="btn ghost" onclick="saveSearch()">Save Search</button></div><div class="row"><input id="jobSearch" placeholder="Search jobs, skills or keywords" oninput="debouncedJobs()"><select id="jobType" onchange="loadJobs()"><option value="">All work modes</option><option>Remote</option><option>Physical</option><option>Delivery</option></select><select id="jobBudgetFilter" onchange="loadJobs()"><option value="">Any budget</option><option value="5000">₦5,000+</option><option value="10000">₦10,000+</option><option value="25000">₦25,000+</option><option value="50000">₦50,000+</option></select></div><div class="row"><select id="jobStateFilter" onchange="loadJobs()"><option value="">All states</option><option>Abia</option><option>Adamawa</option><option>Akwa Ibom</option><option>Anambra</option><option>Bauchi</option><option>Bayelsa</option><option>Benue</option><option>Borno</option><option>Cross River</option><option>Delta</option><option>Ebonyi</option><option>Edo</option><option>Ekiti</option><option>Enugu</option><option>Gombe</option><option>Imo</option><option>Jigawa</option><option>Kaduna</option><option>Kano</option><option>Katsina</option><option>Kebbi</option><option>Kogi</option><option>Kwara</option><option>Lagos</option><option>Nasarawa</option><option>Niger</option><option>Ogun</option><option>Ondo</option><option>Osun</option><option>Oyo</option><option>Plateau</option><option>Rivers</option><option>Sokoto</option><option>Taraba</option><option>Yobe</option><option>Zamfara</option><option>FCT</option></select><select id="jobSort" onchange="loadJobs()"><option value="newest">Newest</option><option value="budget">Highest budget</option></select></div><button class="btn secondary" onclick="useLocation()">Use my location</button> <span id="locationText" class="muted small"></span></div><div id="jobList"></div></section>
+<section id="talent" class="page"><div class="card"><h2>Hire Someone</h2><div class="row"><input id="talentSearch" placeholder="Search skills or name" oninput="loadTalent()"><select id="talentState" onchange="loadTalent()"><option value="">Any state</option><option>Lagos</option><option>Ogun</option><option>Ondo</option><option>Oyo</option><option>Osun</option><option>Other</option></select><select id="talentAvailability" onchange="loadTalent()"><option value="">Any availability</option><option>available</option><option>busy</option></select></div></div><div id="talentList"></div></section>
+<section id="post" class="page"><div class="card"><h2>Post a Job</h2><input id="jobTitle" placeholder="Job title"><textarea id="jobDescription" placeholder="Describe exactly what you need, expected result and deadline"></textarea><div class="row"><select id="jobCategory"><option value="">Select category</option><option>Design</option><option>Writing</option><option>Typing</option><option>Technology</option><option>Marketing</option><option>Delivery</option><option>Cleaning</option><option>Repairs</option><option>Photography</option><option>Education</option><option>Other</option></select><input id="jobBudget" type="number" min="0" placeholder="Budget (₦)"></div><div class="row"><select id="jobMode"><option>Remote</option><option>Physical</option><option>Delivery</option></select><select id="jobExperience"><option>Beginner</option><option>Intermediate</option><option>Experienced</option><option>Any level</option></select></div><div class="row"><select id="jobState"><option value="">State</option><option>Lagos</option><option>Ogun</option><option>Ondo</option><option>Oyo</option><option>Osun</option><option>Other</option></select><select id="jobLga"><option value="">LGA</option></select></div><div class="row"><select id="jobCity"><option value="">City/Town</option></select><select id="jobArea"><option value="">Area/Neighborhood</option></select></div><input id="jobDeadline" type="datetime-local"><textarea id="deliveryDetails" placeholder="Pickup/delivery details. Do not publish private information. This can be visible only to relevant parties."></textarea><label class="check"><input id="jobPrivate" type="checkbox"> Private/invite-only job</label><button class="btn" onclick="postJob()">Save & Publish Job</button></div></section>
+<section id="myjobs" class="page"><div class="card"><div class="top-actions"><h2>My Jobs</h2><button class="btn" onclick="show('post')">Post another</button></div><div id="myJobList"></div></div></section>
+<section id="applications" class="page"><div class="card"><h2>My Applications</h2><div id="applicationList"></div></div></section>
+<section id="work" class="page"><div class="card"><h2>My Work</h2><div id="workList"></div></div></section>
+<section id="messages" class="page"><div class="card"><h2>Messages</h2><div id="conversationList"></div><select id="recipient"></select><textarea id="messageText" placeholder="Write a message"></textarea><button class="btn" onclick="sendMessage()">Send</button></div></section>
+<section id="profile" class="page"><div class="card"><h2>Profile</h2><div class="row"><input id="pName" placeholder="Full name"><input id="pUsername" placeholder="Username"></div><input id="pTitle" placeholder="Professional title"><input id="pSkills" placeholder="Skills, separated by commas"><textarea id="pAbout" placeholder="About you"></textarea><div class="row"><select id="pState"><option value="">State</option><option>Lagos</option><option>Ogun</option><option>Ondo</option><option>Oyo</option><option>Osun</option><option>Other</option></select><select id="pLga"><option value="">LGA</option></select></div><div class="row"><select id="pCity"><option value="">City/Town</option></select><select id="pArea"><option value="">Area/Neighborhood</option></select></div><div class="row"><select id="pAvailability"><option value="available">Available</option><option value="busy">Busy</option><option value="unavailable">Unavailable</option></select><input id="pRadius" type="number" min="1" max="100" placeholder="Service radius (km)"></div><label class="check"><input id="nearbyOpt" type="checkbox"> Allow me to appear in nearby searches</label><button class="btn" onclick="saveProfile()">Save Profile</button></div><div class="card"><h3>Profile trust</h3><div id="profileTrust"></div></div></section>
+<section id="wallet" class="page"><div class="card"><h2>Wallet</h2><div class="grid" id="walletCards"></div><div class="notice"><strong>Payment security</strong>MAVORA should never store raw card numbers or CVV in this HTML. Deposits, provider webhooks and withdrawals must be handled through a secure payment backend/provider.</div><div class="actions"><button class="btn" onclick="openDeposit()">Deposit</button><button class="btn secondary" onclick="openWithdraw()">Withdraw to verified bank</button><button class="btn ghost" onclick="loadTransactions()">Refresh history</button></div></div><div class="card"><h3>Transactions</h3><div id="transactionList"></div></div></section>
+<section id="notifications" class="page"><div class="card"><div class="top-actions"><h2>Notifications</h2><button class="btn ghost" onclick="markNotificationsRead()">Mark all read</button></div><div id="notificationList"></div></div></section>
+<section id="settings" class="page"><div class="card"><h2>Settings & Security</h2><div class="actions"><button class="btn ghost" onclick="resetPassword()">Change/reset password</button><button class="btn ghost" onclick="showSessions()">Security sessions</button><button class="btn danger" onclick="logoutEverywhere()">Log out everywhere</button></div><h3>Notification preferences</h3><label class="check"><input id="emailNotify" type="checkbox" checked> Email notifications</label><label class="check"><input id="messageNotify" type="checkbox" checked> Message notifications</label><h3>Privacy</h3><p class="muted">Public profiles should show only the location level you choose. Exact addresses should stay private.</p></div></section>
+<section id="support" class="page"><div class="card"><h2>Support / Report</h2><select id="supportType"><option>Account</option><option>Job</option><option>Payment</option><option>Withdrawal</option><option>Safety</option><option>Dispute</option><option>Other</option></select><input id="supportSubject" placeholder="Subject"><textarea id="supportMessage" placeholder="Explain the issue and include the relevant job/transaction if available"></textarea><button class="btn" onclick="submitSupport()">Send Support Request</button><div id="supportList"></div></div></section>
+<section id="admin" class="page"><div class="card"><h2>Founder / Admin</h2><div id="adminArea"></div></div></section>
+</main>
+<footer class="footer">MAVORA · Work marketplace · <button class="btn ghost" onclick="show('about')">About</button> <button class="btn ghost" onclick="show('safety')">Safety</button> <button class="btn ghost" onclick="show('help')">Help</button></footer>
+<div id="modal" class="modal"><div class="modalbox"><div class="top-actions"><h2 id="modalTitle">MAVORA</h2><button class="btn ghost" onclick="closeModal()">Close</button></div><div id="modalBody"></div></div></div><div id="toast" class="toast"></div>
+<script>
+const SUPABASE_URL="https://nyxymywtsiwsidgmhszq.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_v6LpgBqy8rgZPlkCpwKZ3A_kHCQEInI";
+const EMAILJS_PUBLIC_KEY="Tgn5dGj_5_BpL8XjR";
+const EMAILJS_SERVICE_ID="service_thx3459";
+const EMAILJS_TEMPLATE_ID="template_hrc9p7b";
+const SITE_URL="https://marviano-png.github.io/MAVORA/";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+if(window.emailjs&&!EMAILJS_PUBLIC_KEY.startsWith("YOUR_"))emailjs.init({publicKey:EMAILJS_PUBLIC_KEY});
+let currentUser=null,myLocation=null,authMode="signup",jobTimer=null;
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function toast(m,error=false){const t=$("toast");t.textContent=m;t.className="toast show";t.style.background=error?"#991b1b":"#111827";setTimeout(()=>{t.className="toast";t.style.background="#111827"},3500)}
+function show(id){
+  if(!$(id))return;
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  $(id).classList.add("active");window.scrollTo(0,0);
+  if(id==="dashboard")loadDashboard();if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();
+  if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadMessages();if(id==="profile")loadProfile();
+  if(id==="wallet"){loadWallet();loadTransactions()}if(id==="notifications")loadNotifications();if(id==="support")loadSupport();if(id==="admin")loadAdmin();
+  if(id==="post"){populateLocation("jobLga",$("jobState").value,$("jobLga").value);populateLocation("jobCity",$("jobState").value,$("jobCity").value);populateLocation("jobArea",$("jobState").value,$("jobArea").value)}
+}
+function nav(){
+ const n=$("nav");
+ n.innerHTML=currentUser?
+ `<button onclick="show('dashboard')">Dashboard</button><button onclick="show('jobs')">Find Work</button><button onclick="show('talent')">Hire Someone</button><button onclick="show('messages')">Messages</button><button onclick="show('notifications')">Alerts</button><button onclick="show('profile')">Profile</button><button class="secondary" onclick="show('settings')">Settings</button><button class="secondary" onclick="show('support')">Support</button><button class="danger" onclick="logout()">Logout</button>`:
+ `<button onclick="show('jobs')">Find Work</button><button onclick="show('help')">Help</button><button onclick="show('safety')">Safety</button><button onclick="show('auth')">Login</button>`;
+}
+function toggleMenu(){const n=$("nav");n.style.display=n.style.display==="flex"?"none":"flex"}
+function toggleAuth(){authMode=authMode==="signup"?"login":"signup";$("authTitle").textContent=authMode==="signup"?"Create MAVORA account":"Login to MAVORA";$("signupFields").style.display=authMode==="signup"?"block":"none";$("password").autocomplete=authMode==="signup"?"new-password":"current-password"}
+async function authSubmit(){
+ const email=$("email").value.trim(),password=$("password").value;
+ if(!email||!password)return toast("Enter email and password.",true);
+ if(authMode==="signup"){
+  if(!$("agreeTerms").checked)return toast("Accept the terms first.",true);
+  const fullName=$("fullName").value.trim(),username=$("username").value.trim().toLowerCase();
+  if(!fullName||!username)return toast("Enter your full name and username.",true);
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:fullName,username}}});
+  if(error)return toast(error.message,true);toast(data.session?"Account created.":"Check your email to verify your account.");
+  if(data.session&&data.user)loginUI(data.user);
+ }else{
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error)return toast(error.message,true);loginUI(data.user)
+ }
+}
+async function resetPassword(){
+ const email=$("email")?.value.trim();
+ if(!email)return toast("Enter your email first.",true);
+ const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:SITE_URL});
+ if(error)return toast(error.message,true);
+ toast("Password reset email sent. Open the email and follow the link.");
+}
+function showPasswordRecovery(){
+ $("modalTitle").textContent="Set a new password";
+ $("modalBody").innerHTML=`<p>Choose a new password for your MAVORA account.</p><label>New password</label><input id="newPassword" type="password" autocomplete="new-password"><label>Confirm password</label><input id="newPassword2" type="password" autocomplete="new-password"><button class="btn" onclick="updateRecoveredPassword()">Update password</button>`;
+ openModal();
+}
+async function updateRecoveredPassword(){
+ const a=$("newPassword").value,b=$("newPassword2").value;
+ if(!a||a.length<8)return toast("Password must be at least 8 characters.",true);
+ if(a!==b)return toast("Passwords do not match.",true);
+ const {error}=await sb.auth.updateUser({password:a});
+ if(error)return toast(error.message,true);
+ closeModal();toast("Password updated successfully. You can now log in.");
+}
+async function logout(){await sb.auth.signOut();currentUser=null;nav();show("home");toast("Logged out")}
+async function logoutEverywhere(){const {error}=await sb.auth.signOut({scope:"global"});if(error)return toast(error.message,true);currentUser=null;nav();show("home");toast("Logged out everywhere")}
+function loginUI(u){currentUser=u;nav();show("dashboard")}
+async function loadDashboard(){
+ if(!currentUser)return;
+ $("welcome").textContent="Welcome, "+(currentUser.user_metadata?.full_name||currentUser.email||"MAVORA user");
+ const [j,a,w,h]=await Promise.all([
+  sb.from("jobs").select("id",{count:"exact",head:true}).eq("client_id",currentUser.id),
+  sb.from("applications").select("id",{count:"exact",head:true}).eq("worker_id",currentUser.id),
+  sb.from("applications").select("id",{count:"exact",head:true}).eq("worker_id",currentUser.id).eq("work_status","completed"),
+  sb.from("contracts").select("id",{count:"exact",head:true}).eq("worker_id",currentUser.id).eq("status","active")
+ ]);
+ $("stats").innerHTML=
+ `<button class="card click-card" onclick="show('myjobs')"><div>Jobs Posted</div><div class="stat">${j.count||0}</div><div class="small muted">Open my posted jobs</div></button>
+  <button class="card click-card" onclick="show('applications')"><div>Applications</div><div class="stat">${a.count||0}</div><div class="small muted">View my applications</div></button>
+  <button class="card click-card" onclick="show('work')"><div>Completed</div><div class="stat">${w.count||0}</div><div class="small muted">View my work</div></button>
+  <button class="card click-card" onclick="show('work')"><div>Active Work</div><div class="stat">${h.count||0}</div><div class="small muted">Open active work</div></button>`;
+ const {data}=await sb.from("jobs").select("id,title,budget,job_mode,category,state,created_at").eq("status","open").order("created_at",{ascending:false}).limit(5);
+ $("recommendedJobs").innerHTML=data?.length?data.map(j=>`<div class="list-item"><b>${esc(j.title)}</b><div class="small">₦${Number(j.budget||0).toLocaleString()} · ${esc(j.job_mode||"")} · ${esc(j.state||"")}</div><button class="btn" onclick="openJob('${j.id}')">View</button></div>`).join(""):"<p class='muted'>No jobs yet.</p>"
+}
+function debouncedJobs(){clearTimeout(jobTimer);jobTimer=setTimeout(loadJobs,350)}
+async function loadJobs(){
+ let q=$("jobSearch")?.value.trim()||"",type=$("jobType")?.value||"",min=Number($("jobBudgetFilter")?.value||0),state=$("jobStateFilter")?.value||"",sort=$("jobSort")?.value||"newest";
+ let query=sb.from("jobs").select("*").eq("status","open").limit(100);if(type)query=query.eq("job_mode",type);if(state)query=query.eq("state",state);if(min)query=query.gte("budget",min);
+ if(q){const safe=q.replace(/[%(),]/g," ").trim();if(safe)query=query.or(`title.ilike.%${safe}%,description.ilike.%${safe}%,category.ilike.%${safe}%`)}
+ query=sort==="budget"?query.order("budget",{ascending:false}):query.order("created_at",{ascending:false});
+ const {data,error}=await query;if(error)return $("jobList").innerHTML=`<div class="notice error">${esc(error.message)}</div>`;
+ $("jobList").innerHTML=data?.length?data.map(j=>`<div class="card job-card"><h3>${esc(j.title)}</h3><span class="badge">${esc(j.job_mode||"Remote")}</span><span class="badge">${esc(j.category||"General")}</span><span class="badge yellow">${esc(j.experience_level||"Any level")}</span><p>${esc(j.description)}</p><p><b>Budget:</b> ₦${Number(j.budget||0).toLocaleString()}</p><p class="muted">📍 ${esc([j.state,j.lga,j.city,j.area].filter(Boolean).join(" • ")||"Remote")}</p><div class="actions"><button class="btn" onclick="openJob('${j.id}')">View / Apply</button><button class="btn ghost" onclick="saveJob('${j.id}')">Save</button><button class="btn ghost" onclick="reportJob('${j.id}')">Report</button></div></div>`).join(""):"<div class='empty'>No jobs found.</div>"
+}
+async function openJob(id){const {data:j,error}=await sb.from("jobs").select("*").eq("id",id).single();if(error)return toast(error.message,true);$("modalTitle").textContent=j.title;$("modalBody").innerHTML=`<p>${esc(j.description)}</p><p><b>Budget:</b> ₦${Number(j.budget||0).toLocaleString()}</p><p><b>Mode:</b> ${esc(j.job_mode||"")} · <b>Category:</b> ${esc(j.category||"")}</p><p><b>Location:</b> ${esc([j.state,j.lga,j.city,j.area].filter(Boolean).join(" • ")||"Remote")}</p><p><b>Deadline:</b> ${j.deadline?new Date(j.deadline).toLocaleString():"Not specified"}</p><div class="actions"><button class="btn" onclick="openApply('${j.id}')">Apply</button><button class="btn ghost" onclick="reportJob('${j.id}')">Report job</button></div>`;openModal()}
+function openApply(id){if(!currentUser)return show("auth");$("modalTitle").textContent="Apply for this job";$("modalBody").innerHTML=`<label>Proposed price (₦)</label><input id="applyPrice" type="number" min="0"><label>Delivery time</label><input id="applyTime" placeholder="e.g. 3 days"><label>Proposal</label><textarea id="applyProposal" placeholder="Explain how you will complete the work"></textarea><label>Questions (optional)</label><textarea id="applyQuestions" placeholder="Anything you need clarified"></textarea><button class="btn" onclick="submitApplication('${id}')">Submit Application</button>`;openModal()}
+async function submitApplication(jobId){
+ const price=Number($("applyPrice").value),proposal=$("applyProposal").value.trim(),time=$("applyTime").value.trim(),questions=$("applyQuestions").value.trim();
+ if(!Number.isFinite(price)||price<0||!proposal)return toast("Enter a valid price and proposal.",true);
+ const {error}=await sb.rpc("apply_for_job",{p_job_id:jobId,p_proposed_price:price,p_proposal:proposal,p_delivery_time:time,p_questions:questions});
+ if(error)return toast(error.message,true);closeModal();toast("Application submitted")
+}
+async function postJob(){
+ if(!currentUser)return show("auth");const title=$("jobTitle").value.trim(),description=$("jobDescription").value.trim(),budget=Number($("jobBudget").value);
+ if(!title||!description||!Number.isFinite(budget)||budget<0)return toast("Fill title, description and valid budget.",true);
+ const payload={client_id:currentUser.id,title,description,budget,category:$("jobCategory").value,job_mode:$("jobMode").value,experience_level:$("jobExperience").value,state:$("jobState").value,lga:$("jobLga").value,city:$("jobCity").value,area:$("jobArea").value,delivery_details:$("deliveryDetails").value.trim(),deadline:$("jobDeadline").value||null,visibility:$("jobPrivate").checked?"private":"public",status:"open"};
+ const {error}=await sb.from("jobs").insert(payload);if(error)return toast(error.message,true);toast("Job published");show("myjobs")
+}
+async function loadMyJobs(){
+ const {data,error}=await sb.from("jobs").select("*").eq("client_id",currentUser.id).order("created_at",{ascending:false});
+ $("myJobList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(j=>`<div class="card"><h3>${esc(j.title)}</h3><span class="badge">${esc(j.status)}</span><p>₦${Number(j.budget||0).toLocaleString()} · ${esc(j.job_mode||"")}</p><div class="actions"><button class="btn" onclick="viewApplicants('${j.id}')">Applicants</button><button class="btn ghost" onclick="editJob('${j.id}')">Edit</button>${j.status==="open"?`<button class="btn danger" onclick="closeJob('${j.id}')">Close</button>`:`<button class="btn success" onclick="reopenJob('${j.id}')">Reopen</button>`}</div></div>`).join(""):"<div class='empty'>You have not posted any jobs.</div>"
+}
+async function closeJob(id){if(!confirm("Close this job?"))return;const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"closed"});if(error)return toast(error.message,true);loadMyJobs()}
+async function reopenJob(id){const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"open"});if(error)return toast(error.message,true);loadMyJobs()}
+async function editJob(id){
+ const {data:j,error}=await sb.from("jobs").select("*").eq("id",id).single();if(error)return toast(error.message,true);
+ $("modalTitle").textContent="Edit Job";$("modalBody").innerHTML=`<label>Title</label><input id="editTitle" value="${esc(j.title)}"><label>Description</label><textarea id="editDescription">${esc(j.description)}</textarea><label>Budget</label><input id="editBudget" type="number" min="0" value="${Number(j.budget||0)}"><label>Deadline</label><input id="editDeadline" type="datetime-local" value="${j.deadline?new Date(j.deadline).toISOString().slice(0,16):""}"><button class="btn" onclick="saveJobEdit('${id}')">Save changes</button>`;openModal()
+}
+async function saveJobEdit(id){const payload={title:$("editTitle").value.trim(),description:$("editDescription").value.trim(),budget:Number($("editBudget").value),deadline:$("editDeadline").value||null};if(!payload.title||!payload.description||!Number.isFinite(payload.budget)||payload.budget<0)return toast("Check the job details.",true);const {error}=await sb.from("jobs").update(payload).eq("id",id).eq("client_id",currentUser.id);if(error)return toast(error.message,true);closeModal();loadMyJobs();toast("Job updated")}
+async function viewApplicants(jobId){
+ const {data,error}=await sb.from("applications").select("*,profiles:worker_id(full_name,username,professional_title,skills,state,lga,city,area,rating,completed_jobs)").eq("job_id",jobId).order("created_at",{ascending:true});
+ if(error)return toast(error.message,true);
+ $("modalTitle").textContent="Applicants";$("modalBody").innerHTML=data?.length?data.map(a=>`<div class="list-item"><h3>${esc(a.profiles?.full_name||"Worker")}</h3><p>${esc(a.profiles?.professional_title||"")}</p><p>${esc(a.profiles?.skills||"")}</p><p>⭐ ${Number(a.profiles?.rating||0).toFixed(1)} · ${Number(a.profiles?.completed_jobs||0)} completed</p><p><b>Proposed:</b> ₦${Number(a.proposed_price||0).toLocaleString()}</p><p>${esc(a.proposal||"")}</p><span class="badge">${esc(a.status||"pending")}</span>${a.status==="pending"?`<button class="btn success" onclick="chooseWorker('${jobId}','${a.id}')">Choose Worker</button>`:""}</div>`).join(""):"<div class='empty'>No applicants.</div>";openModal()
+}
+async function chooseWorker(jobId,applicationId){
+  if(!currentUser)return show("auth");
+  if(!confirm("Choose this worker and continue to payment?"))return;
+
+  const {data,error}=await sb.rpc("choose_worker",{
+    p_job_id:jobId,
+    p_application_id:applicationId
+  });
+
+  if(error)return toast(error.message,true);
+
+  closeModal();
+
+  if(!data?.success){
+    return toast("Worker selection could not be completed.",true);
+  }
+
+  $("modalTitle").textContent="Payment Required";
+  $("modalBody").innerHTML=`
+    <div class="notice successbox">
+      <strong>Worker selected successfully.</strong>
+      <p>Payment is required before the worker can begin.</p>
+    </div>
+    <p><b>Agreed amount:</b> ₦${Number(data.payment_amount||data.agreed_price||0).toLocaleString()}</p>
+    <div class="actions">
+      <button class="btn" onclick="startJobPayment('${data.application_id}')">
+        Pay for Job
+      </button>
+      <button class="btn ghost" onclick="closeModal();loadMyJobs()">
+        Pay Later
+      </button>
+    </div>
+  `;
+  openModal();
+
+  loadMyJobs();
+}
+
+async function startJobPayment(applicationId){
+  if(!currentUser)return show("auth");
+
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  if(sessionError||!sessionData?.session){
+    return toast("Your session has expired. Please log in again.",true);
+  }
+
+  const {data,error}=await sb.functions.invoke("mavora-paystack",{
+    body:{application_id:applicationId}
+  });
+
+  if(error){
+    console.error("Payment initialization error:",error);
+    return toast(error.message||"Could not start payment.",true);
+  }
+
+  if(!data?.authorization_url){
+    console.error("Unexpected payment response:",data);
+    return toast("Payment provider did not return a checkout link.",true);
+  }
+
+  toast("Opening secure Paystack checkout...");
+
+  window.location.href=data.authorization_url;
+}
+async function loadApplications(){
+ const {data,error}=await sb.from("applications").select("*,jobs(title,budget,client_id,status)").eq("worker_id",currentUser.id).order("created_at",{ascending:false});
+ $("applicationList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(a=>`<div class="card"><h3>${esc(a.jobs?.title||"Job")}</h3><p>Proposed: ₦${Number(a.proposed_price||0).toLocaleString()}</p><span class="badge">${esc(a.status||"pending")}</span><p class="muted">${esc(a.proposal||"")}</p></div>`).join(""):"<div class='empty'>No applications.</div>"
+}
+async function loadWork(){
+ const {data,error}=await sb.from("applications").select("*,jobs(title,description,budget)").eq("worker_id",currentUser.id).in("status",["hired","accepted"]).order("updated_at",{ascending:false});
+ 
+
+    .select("*,jobs(title,description,budget)")
+    .eq("worker_id",currentUser.id)
+    .in("status",["hired","accepted"])
+    .order("updated_at",{ascending:false});
+
+  $("workList").innerHTML=error
+    ? `<div class='notice error'>${esc(error.message)}</div>`
+    : data?.length
+      ? data.map(a=>`
+        <div class="card">
+          <h3>${esc(a.jobs?.title||"Work")}</h3>
+          <p>${esc(a.jobs?.description||"")}</p>
+          <p><b>Agreed amount:</b> ₦${Number(a.proposed_price||a.jobs?.budget||0).toLocaleString()}</p>
+          <span class="badge">${esc(a.work_status||"not_started")}</span>
+
+          <textarea id="sub_${a.id}" placeholder="Describe completed work">${esc(a.work_submission||"")}</textarea>
+
+          <input id="file_${a.id}" type="file"
+            accept="image/*,.pdf,.doc,.docx,.txt,.zip">
+
+          <div class="actions">
+            <button class="btn" onclick="submitWork('${a.id}')">
+              Submit Work
+            </button>
+
+            <button class="btn warning" onclick="requestRevision('${a.id}')">
+              Request Revision
+            </button>
+
+            <button class="btn ghost" onclick="openDispute('${a.id}')">
+              Dispute
+            </button>
+          </div>
+        </div>
+      `).join("")
+      : "<div class='empty'>No active work.</div>";
+}
+
+async function submitWork(id){
+  const sub=$("sub_"+id).value.trim();
+  const file=$("file_"+id).files[0];
+
+  if(!sub&&!file)
+    return toast("Add a submission or file.",true);
+
+  if(file){
+    if(file.size>15*1024*1024)
+      return toast("File is too large. Maximum 15MB.",true);
+
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=`${currentUser.id}/${id}/${Date.now()}_${safe}`;
+
+    const {error}=await sb.storage
+      .from("mavora-work")
+      .upload(path,file,{upsert:false});
+
+    if(error)return toast(error.message,true);
+
+    const {error:e}=await sb.from("work_files").insert({
+      application_id:id,
+      uploader_id:currentUser.id,
+      file_path:path,
+      file_name:file.name,
+      mime_type:file.type,
+      size_bytes:file.size
+    });
+
+    if(e)return toast(e.message,true);
+  }
+
+  const {error}=await sb.rpc("submit_work",{
+    p_application_id:id,
+    p_submission:sub
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Work submitted successfully.");
+  loadWork();
+}
+
+function requestRevision(id){
+  openDispute(id,"revision");
+}
+
+function openDispute(id,kind="dispute"){
+  $("modalTitle").textContent=
+    kind==="revision" ? "Request Revision" : "Open Dispute";
+
+  $("modalBody").innerHTML=`
+    <p class="muted">
+      ${kind==="revision"
+        ?"Explain what needs to be changed."
+        :"Explain the problem clearly so MAVORA can review it."}
+    </p>
+
+    <textarea id="issueNote"
+      placeholder="Write your explanation"></textarea>
+
+    <button class="btn warning"
+      onclick="sendIssue('${id}','${kind}')">
+      Submit
+    </button>
+  `;
+
+  openModal();
+}
+
+async function sendIssue(id,kind){
+  const note=$("issueNote").value.trim();
+
+  if(!note)
+    return toast("Write a note.",true);
+
+  if(kind==="revision"){
+
+    const {error}=await sb.rpc("request_work_revision",{
+      p_application_id:id,
+      p_note:note
+    });
+
+    if(error)return toast(error.message,true);
+
+  }else{
+
+    const {error}=await sb.from("disputes").insert({
+      application_id:id,
+      opened_by:currentUser.id,
+      reason:note,
+      status:"open"
+    });
+
+    if(error)return toast(error.message,true);
+  }
+
+  closeModal();
+
+  toast(
+    kind==="revision"
+      ? "Revision request sent."
+      : "Dispute opened."
+  );
+
+  loadWork();
+}
+
+async function loadProfile(){
+  const {data,error}=await sb.from("profiles")
+    .select("*")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(error)return toast(error.message,true);
+  if(!data)return;
+
+  $("pName").value=data.full_name||"";
+  $("pUsername").value=data.username||"";
+  $("pTitle").value=data.professional_title||"";
+  $("pSkills").value=data.skills||"";
+  $("pAbout").value=data.about||"";
+  $("pState").value=data.state||"";
+
+  populateLocation("pLga",data.state,data.lga);
+  populateLocation("pCity",data.state,data.city);
+  populateLocation("pArea",data.state,data.area);
+
+  $("pAvailability").value=data.availability||"available";
+  $("pRadius").value=data.service_radius_km||"";
+  $("nearbyOpt").checked=!!data.nearby_enabled;
+
+  $("profileTrust").innerHTML=`
+    <span class="badge">
+      Email: ${currentUser.email_confirmed_at?"Verified":"Pending"}
+    </span>
+
+    <span class="badge">
+      Phone: ${currentUser.phone?"Added":"Not added"}
+    </span>
+
+    <span class="badge">
+      Identity: ${data.identity_status||"Not verified"}
+    </span>
+
+    <span class="badge">
+      Rating: ${Number(data.rating||0).toFixed(1)}
+    </span>
+  `;
+}
+
+async function saveProfile(){
+  const payload={
+    id:currentUser.id,
+    full_name:$("pName").value.trim(),
+    username:$("pUsername").value.trim().toLowerCase(),
+    professional_title:$("pTitle").value.trim(),
+    skills:$("pSkills").value.trim(),
+    state:$("pState").value,
+    lga:$("pLga").value,
+    city:$("pCity").value,
+    area:$("pArea").value,
+    about:$("pAbout").value.trim(),
+    availability:$("pAvailability").value,
+    service_radius_km:Number($("pRadius").value||0)||null,
+    nearby_enabled:$("nearbyOpt").checked,
+    updated_at:new Date().toISOString()
+  };
+
+  const {error}=await sb.rpc("save_my_profile",{
+    p_profile:payload
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Profile saved.");
+  loadProfile();
+}
+
+const LOC={
+  Lagos:{
+    lga:["Agege","Alimosho","Ikeja","Ikorodu","Kosofe","Lagos Island","Lagos Mainland","Oshodi-Isolo","Surulere","Other"],
+    city:["Ikeja","Alimosho","Agege","Other"],
+    area:["Egbeda","Iyana Ipaja","Alimosho","Other"]
+  },
+
+  Ogun:{
+    lga:["Ado-Odo/Ota","Ifo","Obafemi Owode","Other"],
+    city:["Ota","Ifo","Other"],
+    area:["Ota","Sango","Iyana Iyesi","High Court Area","Other"]
+  },
+
+  Ondo:{
+    lga:["Akure South","Akure North","Ondo West","Other"],
+    city:["Akure","Ondo","Other"],
+    area:["Other"]
+  },
+
+  Oyo:{
+    lga:["Ibadan North","Ibadan South-West","Other"],
+    city:["Ibadan","Other"],
+    area:["Other"]
+  },
+
+  Osun:{
+    lga:["Osogbo","Ife Central","Other"],
+    city:["Osogbo","Ile-Ife","Other"],
+    area:["Other"]
+  },
+
+  Other:{
+    lga:["Other"],
+    city:["Other"],
+    area:["Other"]
+  }
+};
+
+function populateLocation(id,state,value){
+  const el=$(id);
+  if(!el)return;
+
+  const key=LOC[state]||LOC.Other;
+
+  const arr=id.toLowerCase().includes("lga")
+    ?key.lga
+    :id.toLowerCase().includes("city")
+      ?key.city
+      :key.area;
+
+  el.innerHTML=
+    '<option value="">Select</option>'+
+    arr.map(x=>
+      `<option value="${esc(x)}" ${x===value?"selected":""}>${esc(x)}</option>`
+    ).join("");
+}
+
+["pState","jobState"].forEach(id=>{
+  $(id)?.addEventListener("change",e=>{
+    const p=id[0]==="p";
+
+    populateLocation(
+      p?"pLga":"jobLga",
+      e.target.value,
+      ""
+    );
+
+    populateLocation(
+      p?"pCity":"jobCity",
+      e.target.value,
+      ""
+    );
+
+    populateLocation(
+      p?"pArea":"jobArea",
+      e.target.value,
+      ""
+    );
+  });
+});
+
+async function loadTalent(){
+  let q=$("talentSearch")?.value.trim()||"";
+  let state=$("talentState")?.value||"";
+  let avail=$("talentAvailability")?.value||"";
+
+  let query=sb.from("profiles")
+    .select("id,full_name,username,professional_title,skills,state,lga,city,area,availability,rating,completed_jobs,nearby_enabled")
+    .neq(
+      "id",
+      currentUser?.id||"00000000-0000-0000-0000-000000000000"
+    )
+    .limit(50);
+
+  if(state&&state!=="Other")
+    query=query.eq("state",state);
+
+  if(avail)
+    query=query.eq("availability",avail);
+
+  if(q){
+    const safe=q.replace(/[%(),]/g," ").trim();
+
+    if(safe){
+      query=query.or(
+        `full_name.ilike.%${safe}%,professional_title.ilike.%${safe}%,skills.ilike.%${safe}%`
+      );
+    }
+  }
+
+  const {data,error}=await query;
+
+  if(error)
+    return $("talentList").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
+
+  $("talentList").innerHTML=data?.length
+    ?data.map(p=>`
+      <div class="card">
+        <h3>${esc(p.full_name||"Worker")}</h3>
+
+        <p>
+          <b>${esc(p.professional_title||"")}</b>
+        </p>
+
+        <p>${esc(p.skills||"")}</p>
+
+        <p>
+          ⭐ ${Number(p.rating||0).toFixed(1)}
+          · ${Number(p.completed_jobs||0)} completed
+          · ${esc(p.availability||"")}
+        </p>
+
+        <p class="muted">
+          📍 ${esc([p.state,p.lga,p.city].filter(Boolean).join(" • "))}
+        </p>
+
+        <button class="btn"
+          onclick="viewTalent('${p.id}')">
+          View Profile
+        </button>
+      </div>
+    `).join("")
+    :"<div class='empty'>No workers found.</div>";
+}
+
+async function viewTalent(id){
+  const {data:p,error}=await sb.from("profiles")
+    .select("*")
+    .eq("id",id)
+    .single();
+
+  if(error)return toast(error.message,true);
+
+  $("modalTitle").textContent=p.full_name||"Worker";
+
+  $("modalBody").innerHTML=`
+    <p><b>${esc(p.professional_title||"")}</b></p>
+
+    <p>${esc(p.about||"")}</p>
+
+    <p>${esc(p.skills||"")}</p>
+
+    <p>
+      ⭐ ${Number(p.rating||0).toFixed(1)}
+      · ${Number(p.completed_jobs||0)} completed
+    </p>
+
+    <p class="muted">
+      📍 ${esc([p.state,p.lga,p.city].filter(Boolean).join(" • "))}
+    </p>
+
+    <button class="btn"
+      onclick="show('post');closeModal()">
+      Post a job for this worker
+    </button>
+  `;
+
+  openModal();
+}
+
+async function saveJob(id){
+  if(!currentUser)return show("auth");
+
+  const {error}=await sb.from("saved_jobs").upsert(
+    {
+      user_id:currentUser.id,
+      job_id:id
+    },
+    {
+      onConflict:"user_id,job_id"
+    }
+  );
+
+  if(error)return toast(error.message,true);
+
+  toast("Job saved.");
+}
+
+async function saveSearch(){
+  if(!currentUser)return show("auth");
+
+  const q=$("jobSearch").value.trim();
+
+  const filters={
+    type:$("jobType").value,
+    state:$("jobStateFilter").value,
+    budget:$("jobBudgetFilter").value,
+    sort:$("jobSort").value
+  };
+
+  const {error}=await sb.from("saved_searches").insert({
+    user_id:currentUser.id,
+    name:q||"My saved search",
+    query:q,
+    filters
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Search saved.");
+}
+
+async function loadConversations(){
+  const {data,error}=await sb.from("messages")
+    .select("*")
+    .or(
+      `sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`
+    )
+    .order("created_at",{ascending:true});
+
+  if(error)
+    return $("conversationList").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
+
+  $("conversationList").innerHTML=data?.length
+    ?data.map(m=>`
+      <div class="message ${m.sender_id===currentUser.id?"mine":""}">
+        <p>${esc(m.message)}</p>
+        <small>${new Date(m.created_at).toLocaleString()}</small>
+      </div>
+    `).join("")
+    :"<div class='empty'>No messages yet.</div>";
+
+  const ids=[
+    ...new Set(
+      (data||[]).map(
+        m=>m.sender_id===currentUser.id
+          ?m.recipient_id
+          :m.sender_id
+      )
+    )
+  ];
+
+  $("recipient").innerHTML=
+    ids.map(id=>
+      `<option value="${esc(id)}">${esc(id)}</option>`
+    ).join("")
+    ||'<option value="">No contacts yet</option>';
+}
+
+function loadMessages(){
+  if(!currentUser)return;
+  loadConversations();
+}
+
+async function sendMessage(){
+  const to=$("recipient").value;
+  const text=$("messageText").value.trim();
+
+  if(!to||!text)
+    return toast("Choose a contact and write a message.",true);
+
+  const {error}=await sb.from("messages").insert({
+    sender_id:currentUser.id,
+    recipient_id:to,
+    message:text
+  });
+
+  if(error)return toast(error.message,true);
+
+  $("messageText").value="";
+
+  loadConversations();
+
+  toast("Message sent.");
+}
+
+async function loadNotifications(){
+  const {data,error}=await sb.from("notifications")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  $("notificationList").innerHTML=error
+    ?`<div class='notice error'>${esc(error.message)}</div>`
+    :data?.length
+      ?data.map(n=>`
+        <div class="list-item">
+          <b>
+            ${n.is_read?"":"● "}
+            ${esc(n.title||"MAVORA")}
+          </b>
+
+          <p>${esc(n.message||"")}</p>
+
+          <small class="muted">
+            ${new Date(n.created_at).toLocaleString()}
+          </small>
+        </div>
+      `).join("")
+      :"<div class='empty'>No notifications.</div>";
+}
+
+async function markNotificationsRead(){
+  const {error}=await sb.from("notifications")
+    .update({is_read:true})
+    .eq("user_id",currentUser.id);
+
+  if(error)return toast(error.message,true);
+
+  loadNotifications();
+}
+
+async function useLocation(){
+  if(!navigator.geolocation)
+    return toast("Location is not supported.",true);
+
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      myLocation={
+        lat:p.coords.latitude,
+        lng:p.coords.longitude
+      };
+
+      $("locationText").textContent=
+        " Location enabled for this session.";
+
+      toast("Location available.");
+    },
+    ()=>toast("Location permission was not granted.",true),
+    {
+      enableHighAccuracy:false,
+      maximumAge:300000
+    }
+  );
+}
+
+async function loadWallet(){
+  const {data,error}=await sb.from("wallets")
+    .select(
+      "available_balance,pending_balance,held_balance,spending_balance,currency"
+    )
+    .eq("user_id",currentUser.id)
+    .maybeSingle();
+
+  if(error)
+    return $("walletCards").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
+
+  const w=data||{};
+
+  $("walletCards").innerHTML=`
+    <div class='card'>
+      <b>Available</b>
+      <div class='stat'>
+        ₦${Number(w.available_balance||0).toLocaleString()}
+      </div>
+    </div>
+
+    <div class='card'>
+      <b>Pending</b>
+      <div class='stat'>
+        ₦${Number(w.pending_balance||0).toLocaleString()}
+      </div>
+    </div>
+
+    <div class='card'>
+      <b>Held</b>
+      <div class='stat'>
+        ₦${Number(w.held_balance||0).toLocaleString()}
+      </div>
+    </div>
+
+    <div class='card'>
+      <b>Spending</b>
+      <div class='stat'>
+        ₦${Number(w.spending_balance||0).toLocaleString()}
+      </div>
+    </div>
+  `;
+}
+
+async function loadTransactions(){
+  const {data,error}=await sb.from("transactions")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  $("transactionList").innerHTML=error
+    ?`<div class='notice error'>${esc(error.message)}</div>`
+    :data?.length
+      ?data.map(t=>`
+        <div class="list-item">
+          <b>${esc(t.type||"Transaction")}</b>
+          <span class="badge">${esc(t.status||"")}</span>
+          <p>
+            ₦${Number(t.amount||0).toLocaleString()}
+            · ${esc(t.reference||"")}
+          </p>
+          <small class="muted">
+            ${new Date(t.created_at).toLocaleString()}
+          </small>
+        </div>
+      `).join("")
+      :"<div class='empty'>No transactions yet.</div>";
+}
+
+function openDeposit(){
+  if(!currentUser)return show("auth");
+
+  $("modalTitle").textContent="Deposit to MAVORA Wallet";
+
+  $("modalBody").innerHTML=`
+    <p>
+      Choose a configured payment method.
+      The actual payment must be initiated through
+      the connected provider.
+    </p>
+
+    <input id="depositAmount"
+      type="number"
+      min="100"
+      placeholder="Amount (₦)">
+
+    <select id="depositMethod">
+      <option>Bank Transfer</option>
+      <option>Card</option>
+    </select>
+
+    <button class="btn"
+      onclick="startDeposit()">
+      Continue
+    </button>
+  `;
+
+  openModal();
+}
+
+async function startDeposit(){
+  const amount=Number($("depositAmount").value);
+
+  if(!Number.isFinite(amount)||amount<100)
+    return toast("Enter a valid amount.",true);
+
+  toast(
+    "Wallet deposits require the configured payment provider flow.",
+    true
+  );
+
+  closeModal();
+}
+
+function openWithdraw(){
+  if(!currentUser)return show("auth");
+
+  $("modalTitle").textContent="Withdraw";
+
+  $("modalBody").innerHTML=`
+    <p>
+      Withdrawals should only go to a verified
+      bank account configured in the secure payment backend.
+    </p>
+
+    <input id="withdrawAmount"
+      type="number"
+      min="100"
+      placeholder="Amount (₦)">
+
+    <button class="btn"
+      onclick="requestWithdraw()">
+      Request withdrawal
+    </button>
+  `;
+
+  openModal();
+}
+
+async function requestWithdraw(){
+  const amount=Number($("withdrawAmount").value);
+
+  if(!Number.isFinite(amount)||amount<100)
+    return toast("Enter a valid amount.",true);
+
+  const {error}=await sb.rpc("request_withdrawal",{
+    p_amount:amount
+  });
+
+  if(error)return toast(error.message,true);
+
+  closeModal();
+
+  toast("Withdrawal request submitted.");
+}
+
+async function submitSupport(){
+  if(!currentUser)return show("auth");
+
+  const subject=$("supportSubject").value.trim();
+  const message=$("supportMessage").value.trim();
+
+  if(!subject||!message)
+    return toast("Enter subject and message.",true);
+
+  const {error}=await sb.from("support_tickets").insert({
+    user_id:currentUser.id,
+    type:$("supportType").value,
+    subject,
+    message,
+    status:"open"
+  });
+
+  if(error)return toast(error.message,true);
+
+  $("supportSubject").value="";
+  $("supportMessage").value="";
+
+  toast("Support request submitted.");
+
+  loadSupport();
+}
+
+async function loadSupport(){
+  if(!currentUser)return;
+
+  $("supportList").innerHTML=
+    "<p class='muted'>Loading support tickets...</p>";
+
+  const {data,error}=await sb.from("support_tickets")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  $("supportList").innerHTML=error
+    ?`<div class='notice error'>${esc(error.message)}</div>`
+    :data?.length
+      ?data.map(t=>`
+        <div class='list-item'>
+          <b>${esc(t.subject)}</b>
+          <span class='badge'>${esc(t.status)}</span>
+          <p>${esc(t.message)}</p>
+        </div>
+      `).join("")
+      :"<p class='muted'>No support tickets.</p>";
+}
+
+async function reportJob(jobId){
+  if(!currentUser)return show("auth");
+
+  $("modalTitle").textContent="Report Job";
+
+  $("modalBody").innerHTML=`
+    <textarea id="reportReason"
+      placeholder="Why should MAVORA review this job?"></textarea>
+
+    <button class="btn danger"
+      onclick="submitReport('job','${jobId}')">
+      Submit report
+    </button>
+  `;
+
+  openModal();
+}
+
+async function submitReport(type,target){
+  const reason=$("reportReason").value.trim();
+
+  if(!reason)
+    return toast("Give a reason.",true);
+
+  const {error}=await sb.from("reports").insert({
+    reporter_id:currentUser.id,
+    target_type:type,
+    target_id:target,
+    reason,
+    status:"open"
+  });
+
+  if(error)return toast(error.message,true);
+
+  closeModal();
+
+  toast("Report submitted for review.");
+}
+
+async function showSessions(){
+  const {data,error}=await sb.auth.getSession();
+
+  $("modalTitle").textContent="Security Session";
+
+  $("modalBody").innerHTML=error
+    ?`<div class="notice error">${esc(error.message)}</div>`
+    :`
+      <div class="notice successbox">
+        <strong>Current session active</strong>
+        ${data.session?"Yes":"No"}
+      </div>
+
+      <p class="muted">
+        This browser session is managed by Supabase Auth.
+        Full device/session history requires server-side
+        session auditing.
+      </p>
+
+      <button class="btn danger"
+        onclick="logoutEverywhere();closeModal()">
+        Log out everywhere
+      </button>
+    `;
+
+  openModal();
+}
+
+async function loadAdmin(){
+  const {data:p,error}=await sb.from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(error||p?.role!=="admin"){
+    return $("adminArea").innerHTML=
+      '<div class="notice error">Admin access required.</div>';
+  }
+
+  const tables=[
+    "profiles",
+    "jobs",
+    "applications",
+    "contracts",
+    "transactions",
+    "withdrawals",
+    "reports",
+    "disputes",
+    "support_tickets"
+  ];
+
+  const counts=await Promise.all(
+    tables.map(x=>
+      sb.from(x).select("id",{count:"exact",head:true})
+    )
+  );
+
+  $("adminArea").innerHTML=
+    '<div class="grid">'+
+    tables.map((t,i)=>`
+      <div class="card">
+        <h3>${t.replaceAll("_"," ")}</h3>
+        <div class="stat">${counts[i].count||0}</div>
+      </div>
+    `).join("")+
+    '</div>'+
+    `
+      <div class="notice">
+        <strong>Production admin rule</strong>
+        Financial changes, user suspension, verification
+        and disputes must be performed through secure
+        server-side RPCs with audit logs and role separation.
+      </div>
+    `;
+}
+
+/* =========================
+   PAYMENT FLOW
+   ========================= */
+
+async function chooseWorker(jobId,applicationId){
+  if(!currentUser)
+    return show("auth");
+
+  if(!confirm(
+    "Choose this worker and continue to payment?"
+  ))return;
+
+  const {data,error}=await sb.rpc("choose_worker",{
+    p_job_id:jobId,
+    p_application_id:applicationId
+  });
+
+  if(error)
+    return toast(error.message,true);
+
+  closeModal();
+
+  if(!data?.success){
+    return toast(
+      "Worker selection could not be completed.",
+      true
+    );
+  }
+
+  $("modalTitle").textContent="Payment Required";
+
+  $("modalBody").innerHTML=`
+    <div class="notice successbox">
+      <strong>Worker selected successfully.</strong>
+      <p>
+        Payment is required before the worker can begin.
+      </p>
+    </div>
+
+    <p>
+      <b>Agreed amount:</b>
+      ₦${Number(
+        data.payment_amount||
+        data.agreed_price||
+        0
+      ).toLocaleString()}
+    </p>
+
+    <div class="actions">
+
+      <button class="btn"
+        onclick="startJobPayment('${data.application_id}')">
+        Pay for Job
+      </button>
+
+      <button class="btn ghost"
+        onclick="closeModal();loadMyJobs()">
+        Pay Later
+      </button>
+
+    </div>
+  `;
+
+  openModal();
+
+  loadMyJobs();
+}
+
+async function startJobPayment(applicationId){
+  if(!currentUser)
+    return show("auth");
+
+  const {
+    data:sessionData,
+    error:sessionError
+  }=await sb.auth.getSession();
+
+  if(
+    sessionError||
+    !sessionData?.session
+  ){
+    return toast(
+      "Your session has expired. Please log in again.",
+      true
+    );
+  }
+
+  const {data,error}=await sb.functions.invoke(
+    "mavora-paystack",
+    {
+      body:{
+        application_id:applicationId
+      }
+    }
+  );
+
+  if(error){
+    return toast(
+      error.message||"Unable to start payment.",
+      true
+    );
+  }
+
+  if(!data?.authorization_url){
+    return toast(
+      data?.message||
+      "Payment could not be initialized.",
+      true
+    );
+  }
+
+  toast("Opening secure Paystack payment...");
+
+  window.location.href=data.authorization_url;
+}
+
+async function approveWork(id){
+  if(!currentUser)
+    return show("auth");
+
+  if(!confirm(
+    "Approve this work? Payment will only be released through the secure payment flow."
+  ))return;
+
+  const {data,error}=await sb.rpc(
+    "approve_work",
+    {
+      p_application_id:id
+    }
+  );
+
+  if(error)
+    return toast(error.message,true);
+
+  if(data?.success===false)
+    return toast(
+      data.message||"Work could not be approved.",
+      true
+    );
+
+  toast(
+    "Work approved. Payment release is now being processed."
+  );
+
+  loadWork();
+  loadMyJobs();
+}
+
+/* =========================
+   MODAL + AUTH
+   ========================= */
+
+function openModal(){
+  $("modal").classList.add("open");
+}
+
+function closeModal(){
+  $("modal").classList.remove("open");
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape")
+    closeModal();
+});
+
+$("modal").addEventListener("click",e=>{
+  if(e.target.id==="modal")
+    closeModal();
+});
+
+sb.auth.onAuthStateChange(
+  (event,session)=>{
+    if(event==="PASSWORD_RECOVERY"){
+      currentUser=session?.user||currentUser;
+      nav();
+      showPasswordRecovery();
+      return;
+    }
+
+    if(session?.user){
+      currentUser=session.user;
+      nav();
+    }else{
+      currentUser=null;
+      nav();
+    }
+  }
+);
+
+(async()=>{
+  const {data}=await sb.auth.getSession();
+
+  if(data.session){
+    currentUser=data.session.user;
+    nav();
+    show("dashboard");
+  }else{
+    nav();
+  }
+})();
+</script>
+</body>
+</html>
