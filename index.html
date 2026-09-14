@@ -255,21 +255,62 @@ async function loadWallet(){const {data,error}=await sb.from("wallets").select("
 async function loadTransactions(){const {data,error}=await sb.from("transactions").select("*").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(100);$("transactionList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(t=>`<div class="list-item"><b>${esc(t.type||"Transaction")}</b><span class="badge">${esc(t.status||"")}</span><p>₦${Number(t.amount||0).toLocaleString()} · ${esc(t.reference||"")}</p><small class="muted">${new Date(t.created_at).toLocaleString()}</small></div>`).join(""):"<div class='empty'>No transactions yet.</div>"}
 function openDeposit(){if(!currentUser)return show("auth");$("modalTitle").textContent="Deposit to MAVORA Wallet";$("modalBody").innerHTML=`<p>Choose a configured payment method. The actual payment must be initiated through the connected provider.</p><input id="depositAmount" type="number" min="100" placeholder="Amount (₦)"><select id="depositMethod"><option>Bank Transfer</option><option>Card</option></select><button class="btn" onclick="startDeposit()">Continue</button>`;openModal()}
 async function startDeposit(){
-  const amount=Number($("depositAmount").value);
-  if(!Number.isFinite(amount)||amount<100)
-    return toast("Enter a valid amount.",true);
+  const amount = Number($("depositAmount").value);
 
-  if(!currentUser)
+  if(!Number.isFinite(amount) || amount < 100){
+    return toast("Enter a valid amount of at least ₦100.", true);
+  }
+
+  if(amount > 5000000){
+    return toast("Maximum deposit is ₦5,000,000.", true);
+  }
+
+  if(!currentUser){
+    closeModal();
     return show("auth");
+  }
 
-  toast("Connecting to MAVORA payment system...");
+  toast("Connecting to Paystack...");
 
-  const {data,error}=await sb.functions.invoke("mavora-paystack",{
-    body:{
-      name:"Functions",
-      amount:amount,
-      email:currentUser.email
+  const { data, error } = await sb.functions.invoke(
+    "mavora-wallet-deposit",
+    {
+      body: {
+        amount: amount
+      }
     }
+  );
+
+  console.log("MAVORA wallet deposit:", data, error);
+
+  if(error){
+    console.error("Wallet deposit error:", error);
+    return toast(
+      error.message || "Unable to connect to payment system.",
+      true
+    );
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.error || "Unable to start payment.",
+      true
+    );
+  }
+
+  if(!data.authorization_url){
+    return toast(
+      "Payment link was not returned.",
+      true
+    );
+  }
+
+  closeModal();
+
+  toast("Opening secure Paystack payment...");
+
+  window.location.href = data.authorization_url;
+}
   });
 
   console.log("MAVORA payment response:",data,error);
