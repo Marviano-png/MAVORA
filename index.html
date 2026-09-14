@@ -259,14 +259,25 @@ async function loadApplications(){
  $("applicationList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(a=>`<div class="card"><h3>${esc(a.jobs?.title||"Job")}</h3><p>Proposed: ₦${Number(a.proposed_price||0).toLocaleString()}</p><span class="badge">${esc(a.status||"pending")}</span><p class="muted">${esc(a.proposal||"")}</p></div>`).join(""):"<div class='empty'>No applications.</div>"
 }
 async function loadWork(){
- const {data,error}=await sb.from("applications").select("*,jobs(title,description,budget)").eq("worker_id",currentUser.id).in("status",["hired","accepted"]).order("updated_at",{ascending:false});
- 
+ const {data,error}=await sb.from("applications")
+   .select("*,jobs(title,description,budget)")
+   .eq("worker_id",currentUser.id)
+   .in("status",["hired","accepted"])
+   .order("updated_at",{ascending:false});
 
-    .select("*,jobs(title,description,budget)")
-    .eq("worker_id",currentUser.id)
-    .in("status",["hired","accepted"])
-    .order("updated_at",{ascending:false});
-
+ $("workList").innerHTML=error
+   ? `<div class="notice error">${esc(error.message)}</div>`
+   : data?.length
+     ? data.map(a=>`
+       <div class="card">
+         <h3>${esc(a.jobs?.title||"Job")}</h3>
+         <p>Budget: ₦${Number(a.jobs?.budget||0).toLocaleString()}</p>
+         <p>Status: <span class="badge">${esc(a.status||"hired")}</span></p>
+         <p class="muted">${esc(a.jobs?.description||"")}</p>
+       </div>
+     `).join("")
+     : `<div class="empty">No active work.</div>`;
+}
   $("workList").innerHTML=error
     ? `<div class='notice error'>${esc(error.message)}</div>`
     : data?.length
