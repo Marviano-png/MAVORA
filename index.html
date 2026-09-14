@@ -255,7 +255,54 @@ async function startJobPayment(applicationId){
   window.location.href=data.authorization_url;
 }
 async function loadApplications(){
- const {data,error}=await sb.from("applications").select("*,jobs(title,budget,client_id,status)").eq("worker_id",currentUser.id).order("created_at",{ascending:false});
+  if(!currentUser)return;
+
+  const {data,error}=await sb
+    .from("applications")
+    .select("*,jobs(title,budget,client_id,status)")
+    .eq("worker_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    $("applicationList").innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  $("applicationList").innerHTML=data?.length
+    ?data.map(a=>`
+      <div class="card">
+        <h3>${esc(a.jobs?.title||"Job Application")}</h3>
+
+        <span class="badge">
+          ${esc(a.status||"pending")}
+        </span>
+
+        <p>
+          <b>Proposed price:</b>
+          ₦${Number(a.proposed_price||0).toLocaleString()}
+        </p>
+
+        <p>
+          <b>Delivery:</b>
+          ${esc(a.delivery_time||"Not specified")}
+        </p>
+
+        <p>${esc(a.proposal||"")}</p>
+
+        ${
+          a.status==="hired" || a.status==="accepted"
+          ?`
+            <div class="notice successbox">
+              You have been selected for this job.
+            </div>
+          `
+          :""
+        }
+      </div>
+    `).join("")
+    :"<div class='empty'>You have not submitted any applications yet.</div>";
+}
 
 
 async function submitWork(id){
