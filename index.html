@@ -303,8 +303,6 @@ async function loadApplications(){
     `).join("")
     :"<div class='empty'>You have not submitted any applications yet.</div>";
 }
-
-
 async function submitWork(id){
   const sub=$("sub_"+id).value.trim();
   const file=$("file_"+id).files[0];
