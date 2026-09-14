@@ -254,7 +254,38 @@ async function useLocation(){if(!navigator.geolocation)return toast("Location is
 async function loadWallet(){const {data,error}=await sb.from("wallets").select("available_balance,pending_balance,held_balance,spending_balance,currency").eq("user_id",currentUser.id).maybeSingle();if(error)return $("walletCards").innerHTML=`<div class='notice error'>${esc(error.message)}</div>`;const w=data||{};$("walletCards").innerHTML=`<div class='card'><b>Available</b><div class='stat'>₦${Number(w.available_balance||0).toLocaleString()}</div></div><div class='card'><b>Pending</b><div class='stat'>₦${Number(w.pending_balance||0).toLocaleString()}</div></div><div class='card'><b>Held</b><div class='stat'>₦${Number(w.held_balance||0).toLocaleString()}</div></div><div class='card'><b>Spending</b><div class='stat'>₦${Number(w.spending_balance||0).toLocaleString()}</div></div>`}
 async function loadTransactions(){const {data,error}=await sb.from("transactions").select("*").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(100);$("transactionList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(t=>`<div class="list-item"><b>${esc(t.type||"Transaction")}</b><span class="badge">${esc(t.status||"")}</span><p>₦${Number(t.amount||0).toLocaleString()} · ${esc(t.reference||"")}</p><small class="muted">${new Date(t.created_at).toLocaleString()}</small></div>`).join(""):"<div class='empty'>No transactions yet.</div>"}
 function openDeposit(){if(!currentUser)return show("auth");$("modalTitle").textContent="Deposit to MAVORA Wallet";$("modalBody").innerHTML=`<p>Choose a configured payment method. The actual payment must be initiated through the connected provider.</p><input id="depositAmount" type="number" min="100" placeholder="Amount (₦)"><select id="depositMethod"><option>Bank Transfer</option><option>Card</option></select><button class="btn" onclick="startDeposit()">Continue</button>`;openModal()}
-async function startDeposit(){const amount=Number($("depositAmount").value);if(!Number.isFinite(amount)||amount<100)return toast("Enter a valid amount.",true);toast("Payment provider setup is required before live deposits can run.",true);closeModal()}
+async function startDeposit(){
+  const amount=Number($("depositAmount").value);
+  if(!Number.isFinite(amount)||amount<100)
+    return toast("Enter a valid amount.",true);
+
+  if(!currentUser)
+    return show("auth");
+
+  toast("Connecting to MAVORA payment system...");
+
+  const {data,error}=await sb.functions.invoke("mavora-paystack",{
+    body:{
+      name:"Functions",
+      amount:amount,
+      email:currentUser.email
+    }
+  });
+
+  console.log("MAVORA payment response:",data,error);
+
+  if(error){
+    console.error(error);
+    return toast(error.message||"Payment connection failed.",true);
+  }
+
+  if(data?.error){
+    return toast(data.error,true);
+  }
+
+  toast("Payment system connected. Response received.");
+  console.log(data);
+}
 function openWithdraw(){if(!currentUser)return show("auth");$("modalTitle").textContent="Withdraw";$("modalBody").innerHTML=`<p>Withdrawals should only go to a verified bank account configured in your secure payment backend.</p><input id="withdrawAmount" type="number" min="100" placeholder="Amount (₦)"><button class="btn" onclick="requestWithdraw()">Request withdrawal</button>`;openModal()}
 async function requestWithdraw(){const amount=Number($("withdrawAmount").value);if(!Number.isFinite(amount)||amount<100)return toast("Enter a valid amount.",true);const {error}=await sb.rpc("request_withdrawal",{p_amount:amount});if(error)return toast(error.message,true);closeModal();toast("Withdrawal request submitted")}
 async function submitSupport(){if(!currentUser)return show("auth");const subject=$("supportSubject").value.trim(),message=$("supportMessage").value.trim();if(!subject||!message)return toast("Enter subject and message.",true);const {error}=await sb.from("support_tickets").insert({user_id:currentUser.id,type:$("supportType").value,subject,message,status:"open"});if(error)return toast(error.message,true);$("supportSubject").value="";$("supportMessage").value="";toast("Support request submitted");loadSupport()}
