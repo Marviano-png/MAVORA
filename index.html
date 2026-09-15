@@ -934,19 +934,49 @@ function openDeposit(){
 }
 
 async function startDeposit(){
+  if(!currentUser)
+    return show("auth");
+
   const amount=Number($("depositAmount").value);
 
   if(!Number.isFinite(amount)||amount<100)
     return toast("Enter a valid amount.",true);
 
-  toast(
-    "Wallet deposits require the configured payment provider flow.",
-    true
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+
+  if(sessionError||!sessionData?.session)
+    return toast("Your session has expired. Please log in again.",true);
+
+  const {data,error}=await sb.functions.invoke(
+    "mavora-paystack",
+    {
+      body:{
+        type:"wallet_deposit",
+        amount:amount
+      }
+    }
   );
 
-  closeModal();
-}
+  if(error){
+    console.error("Wallet payment error:",error);
+    return toast(
+      error.message||"Could not start wallet payment.",
+      true
+    );
+  }
 
+  if(!data?.authorization_url){
+    console.error("Unexpected wallet payment response:",data);
+    return toast(
+      data?.message||"Payment provider did not return a checkout link.",
+      true
+    );
+  }
+
+  toast("Opening secure payment...");
+
+  window.location.href=data.authorization_url;
+}
 function openWithdraw(){
   if(!currentUser)return show("auth");
 
