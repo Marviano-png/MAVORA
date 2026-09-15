@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://marviano-png.github.io/MAVORA/sitemap.xml
