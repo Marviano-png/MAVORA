@@ -1308,12 +1308,16 @@ if(!bankCode)
     }
   });
 
-  if(error){
-    if(result)
-      result.innerHTML=
-        `<div class="notice error">${esc(error.message)}</div>`;
-    return;
-  }
+if(error){
+  if(result)
+    result.innerHTML=
+      `<div class="notice error">
+        Bank verification failed. Please check the selected bank and account number.
+      </div>`;
+
+  console.error("Bank verification error:",error);
+  return;
+}
 
   if(!data?.success){
     if(result)
