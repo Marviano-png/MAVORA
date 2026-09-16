@@ -1226,6 +1226,39 @@ function openWithdraw(){
   openModal();
 }
 
+ async function loadBankList(){
+
+  const select=$("bankSelect");
+
+  if(!select)return;
+
+  select.innerHTML=
+    `<option value="">Loading banks...</option>`;
+
+  const {data,error}=await sb.functions.invoke("mavora-paystack",{
+    body:{
+      type:"list_banks"
+    }
+  });
+
+  if(error || !data?.success){
+    select.innerHTML=
+      `<option value="">Could not load banks</option>`;
+
+    return toast(
+      data?.error || error?.message || "Could not load banks.",
+      true
+    );
+  }
+
+  select.innerHTML=
+    `<option value="">Select your bank</option>`+
+    (data.banks||[])
+      .map(bank=>
+        `<option value="${esc(bank.code)}">${esc(bank.name)}</option>`
+      )
+      .join("");
+} 
 async function requestWithdraw(){
   const amount=Number($("withdrawAmount").value);
 
