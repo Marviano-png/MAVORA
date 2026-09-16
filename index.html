@@ -300,7 +300,66 @@ async function loadApplications(){
     `).join("")
     :"<div class='empty'>You have not submitted any applications yet.</div>";
 }
-async function submitWork(id){
+async function loadWork(){
+  if(!currentUser)return;
+
+  const {data,error}=await sb
+    .from("applications")
+    .select("*,jobs(title,description,budget,client_id,status)")
+    .eq("worker_id",currentUser.id)
+    .in("status",["hired","accepted"])
+    .order("updated_at",{ascending:false});
+
+  if(error){
+    $("workList").innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  $("workList").innerHTML=data?.length
+    ?data.map(a=>`
+      <div class="card">
+        <h3>${esc(a.jobs?.title||"Active Work")}</h3>
+
+        <span class="badge">
+          ${esc(a.status||"hired")}
+        </span>
+
+        <p>
+          <b>Budget:</b>
+          ₦${Number(a.jobs?.budget||0).toLocaleString()}
+        </p>
+
+        <p>${esc(a.jobs?.description||"")}</p>
+
+        <label>Work submission</label>
+        <textarea id="sub_${a.id}"
+          placeholder="Describe or submit your completed work"></textarea>
+
+        <label>Attach file (optional)</label>
+        <input id="file_${a.id}" type="file">
+
+        <div class="actions">
+          <button class="btn"
+            onclick="submitWork('${a.id}')">
+            Submit Work
+          </button>
+
+          <button class="btn ghost"
+            onclick="requestRevision('${a.id}')">
+            Request Revision
+          </button>
+
+          <button class="btn danger"
+            onclick="openDispute('${a.id}')">
+            Dispute
+          </button>
+        </div>
+      </div>
+    `).join("")
+    :"<div class='empty'>No active work found.</div>";
+}
+  async function submitWork(id){
   const sub=$("sub_"+id).value.trim();
   const file=$("file_"+id).files[0];
 
