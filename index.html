@@ -259,7 +259,7 @@ async function loadApplications(){
 
   const {data,error}=await sb
     .from("applications")
-    .select("*,jobs(title,budget,client_id,status)")
+    .select("*")
     .eq("worker_id",currentUser.id)
     .order("created_at",{ascending:false});
 
@@ -272,7 +272,7 @@ async function loadApplications(){
   $("applicationList").innerHTML=data?.length
     ?data.map(a=>`
       <div class="card">
-        <h3>${esc(a.jobs?.title||"Job Application")}</h3>
+        <h3>Job Application</h3>
 
         <span class="badge">
           ${esc(a.status||"pending")}
@@ -290,13 +290,10 @@ async function loadApplications(){
 
         <p>${esc(a.proposal||"")}</p>
 
-        ${
-          a.status==="hired" || a.status==="accepted"
-          ?`
-            <div class="notice successbox">
+        ${a.status==="hired"||a.status==="accepted"
+          ?`<div class="notice successbox">
               You have been selected for this job.
-            </div>
-          `
+            </div>`
           :""
         }
       </div>
