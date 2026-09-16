@@ -1190,17 +1190,37 @@ function openWithdraw(){
   $("modalTitle").textContent="Withdraw";
 
   $("modalBody").innerHTML=`
-    <p>
-      Withdrawals should only go to a verified
-      bank account configured in the secure payment backend.
+    <p class="muted">
+      Verify your Nigerian bank account before requesting a withdrawal.
     </p>
+
+    <input id="bankName"
+      placeholder="Bank name">
+
+    <input id="bankCode"
+      inputmode="numeric"
+      placeholder="Bank code">
+
+    <input id="accountNumber"
+      inputmode="numeric"
+      maxlength="10"
+      placeholder="10-digit account number">
+
+    <button class="btn"
+      onclick="verifyBankAccount()">
+      Verify bank account
+    </button>
+
+    <div id="bankVerificationResult"></div>
+
+    <hr>
 
     <input id="withdrawAmount"
       type="number"
       min="100"
       placeholder="Amount (₦)">
 
-    <button class="btn"
+    <button class="btn success"
       onclick="requestWithdraw()">
       Request withdrawal
     </button>
@@ -1226,6 +1246,58 @@ async function requestWithdraw(){
   toast("Withdrawal request submitted.");
 }
 
+async function verifyBankAccount(){
+
+  const bankCode=$("bankCode").value.trim();
+  const accountNumber=$("accountNumber").value.trim();
+  const bankName=$("bankName").value.trim();
+
+  if(!/^\d{10}$/.test(accountNumber))
+    return toast("Enter a valid 10-digit account number.",true);
+
+  if(!bankCode)
+    return toast("Enter the bank code.",true);
+
+  const result=$("bankVerificationResult");
+
+  if(result)
+    result.innerHTML=
+      `<p class="muted">Verifying bank account...</p>`;
+
+  const {data,error}=await sb.functions.invoke("mavora-paystack",{
+    body:{
+      type:"verify_bank_account",
+      bank_code:bankCode,
+      bank_name:bankName,
+      account_number:accountNumber
+    }
+  });
+
+  if(error){
+    if(result)
+      result.innerHTML=
+        `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  if(!data?.success){
+    if(result)
+      result.innerHTML=
+        `<div class="notice error">${esc(data?.error||"Bank verification failed.")}</div>`;
+    return;
+  }
+
+  if(result)
+    result.innerHTML=`
+      <div class="notice">
+        <b>Bank account verified</b>
+        <br>
+        Account name: ${esc(data.account_name||"")}
+      </div>
+    `;
+
+  toast("Bank account verified.");
+}
 async function loadWithdrawals(){
 
   if(!currentUser)return;
