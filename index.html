@@ -279,7 +279,6 @@ async function payPendingJob(jobId){
 
   startJobPayment(application.id);
 }
-async function closeJob(id){
 async function closeJob(id){if(!confirm("Close this job?"))return;const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"closed"});if(error)return toast(error.message,true);loadMyJobs()}
 async function reopenJob(id){const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"open"});if(error)return toast(error.message,true);loadMyJobs()}
 async function editJob(id){
