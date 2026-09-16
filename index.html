@@ -244,6 +244,43 @@ async function loadMyJobs(){
         `).join("")
         : "<div class='empty'>You have not posted any jobs.</div>";
 }
+async function payPendingJob(jobId){
+
+  if(!currentUser)
+    return show("auth");
+
+  const {data:job,error:jobError}=await sb
+    .from("jobs")
+    .select("id,hired_worker_id")
+    .eq("id",jobId)
+    .single();
+
+  if(jobError)
+    return toast(jobError.message,true);
+
+  if(!job?.hired_worker_id)
+    return toast("No worker has been selected for this job.",true);
+
+  const {data:apps,error:appError}=await sb
+    .from("applications")
+    .select("id,worker_id,status")
+    .eq("job_id",jobId)
+    .eq("worker_id",job.hired_worker_id)
+    .in("status",["awaiting_payment","hired"])
+    .limit(1);
+
+  if(appError)
+    return toast(appError.message,true);
+
+  const application=apps?.[0];
+
+  if(!application)
+    return toast("Payment application could not be found.",true);
+
+  startJobPayment(application.id);
+}
+
+async function closeJob(id){
 async function closeJob(id){if(!confirm("Close this job?"))return;const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"closed"});if(error)return toast(error.message,true);loadMyJobs()}
 async function reopenJob(id){const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"open"});if(error)return toast(error.message,true);loadMyJobs()}
 async function editJob(id){
