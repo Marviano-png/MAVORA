@@ -175,8 +175,74 @@ async function postJob(){
  const {error}=await sb.from("jobs").insert(payload);if(error)return toast(error.message,true);toast("Job published");show("myjobs")
 }
 async function loadMyJobs(){
- const {data,error}=await sb.from("jobs").select("*").eq("client_id",currentUser.id).order("created_at",{ascending:false});
- $("myJobList").innerHTML=error?`<div class='notice error'>${esc(error.message)}</div>`:data?.length?data.map(j=>`<div class="card"><h3>${esc(j.title)}</h3><span class="badge">${esc(j.status)}</span><p>₦${Number(j.budget||0).toLocaleString()} · ${esc(j.job_mode||"")}</p><div class="actions"><button class="btn" onclick="viewApplicants('${j.id}')">Applicants</button><button class="btn ghost" onclick="editJob('${j.id}')">Edit</button>${j.status==="open"?`<button class="btn danger" onclick="closeJob('${j.id}')">Close</button>`:`<button class="btn success" onclick="reopenJob('${j.id}')">Reopen</button>`}</div></div>`).join(""):"<div class='empty'>You have not posted any jobs.</div>"
+  const {data,error}=await sb
+    .from("jobs")
+    .select("*")
+    .eq("client_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  $("myJobList").innerHTML =
+    error
+      ? `<div class='notice error'>${esc(error.message)}</div>`
+      : data?.length
+        ? data.map(j=>`
+          <div class="card">
+            <h3>${esc(j.title)}</h3>
+
+            <span class="badge">
+              ${esc(j.status)}
+            </span>
+
+            <p>
+              ₦${Number(j.budget||0).toLocaleString()}
+              · ${esc(j.job_mode||"")}
+            </p>
+
+            <div class="actions">
+
+              <button class="btn"
+                onclick="viewApplicants('${j.id}')">
+                Applicants
+              </button>
+
+              ${
+                j.status==="awaiting_payment"
+                  ? `
+                    <button class="btn success"
+                      onclick="payPendingJob('${j.id}')">
+                      Pay Now
+                    </button>
+                  `
+                  : ""
+              }
+
+              <button class="btn ghost"
+                onclick="editJob('${j.id}')">
+                Edit
+              </button>
+
+              ${
+                j.status==="open"
+                  ? `
+                    <button class="btn danger"
+                      onclick="closeJob('${j.id}')">
+                      Close
+                    </button>
+                  `
+                  : j.status!=="awaiting_payment"
+                    ? `
+                      <button class="btn success"
+                        onclick="reopenJob('${j.id}')">
+                        Reopen
+                      </button>
+                    `
+                    : ""
+              }
+
+            </div>
+          </div>
+        `).join("")
+        : "<div class='empty'>You have not posted any jobs.</div>";
 }
 async function closeJob(id){if(!confirm("Close this job?"))return;const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"closed"});if(error)return toast(error.message,true);loadMyJobs()}
 async function reopenJob(id){const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"open"});if(error)return toast(error.message,true);loadMyJobs()}
