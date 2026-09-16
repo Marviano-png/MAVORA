@@ -1194,12 +1194,9 @@ function openWithdraw(){
       Verify your Nigerian bank account before requesting a withdrawal.
     </p>
 
-    <input id="bankName"
-      placeholder="Bank name">
-
-    <input id="bankCode"
-      inputmode="numeric"
-      placeholder="Bank code">
+    <select id="bankSelect">
+  <option value="">Loading banks...</option>
+</select>
 
     <input id="accountNumber"
       inputmode="numeric"
@@ -1248,9 +1245,13 @@ async function requestWithdraw(){
 
 async function verifyBankAccount(){
 
-  const bankCode=$("bankCode").value.trim();
-  const accountNumber=$("accountNumber").value.trim();
-  const bankName=$("bankName").value.trim();
+ const bankSelect=$("bankSelect");
+const bankCode=bankSelect.value;
+const bankName=bankSelect.options[bankSelect.selectedIndex]?.text || "";
+const accountNumber=$("accountNumber").value.trim();
+
+if(!bankCode)
+  return toast("Select your bank.",true);
 
   if(!/^\d{10}$/.test(accountNumber))
     return toast("Enter a valid 10-digit account number.",true);
