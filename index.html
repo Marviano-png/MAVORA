@@ -1034,31 +1034,79 @@ async function loadWallet(){
 }
 
 async function loadTransactions(){
-  const {data,error}=await sb.from("transactions")
-    .select("*")
+
+  if(!currentUser)return;
+
+  const {data,error}=await sb
+    .from("transactions")
+    .select("id,type,amount,status,reference,provider,provider_reference,created_at")
     .eq("user_id",currentUser.id)
     .order("created_at",{ascending:false})
     .limit(100);
 
-  $("transactionList").innerHTML=error
-    ?`<div class='notice error'>${esc(error.message)}</div>`
-    :data?.length
-      ?data.map(t=>`
-        <div class="list-item">
-          <b>${esc(t.type||"Transaction")}</b>
-          <span class="badge">${esc(t.status||"")}</span>
-          <p>
-            ₦${Number(t.amount||0).toLocaleString()}
-            · ${esc(t.reference||"")}
-          </p>
-          <small class="muted">
-            ${new Date(t.created_at).toLocaleString()}
-          </small>
-        </div>
-      `).join("")
-      :"<div class='empty'>No transactions yet.</div>";
-}
+  if(error){
+    $("transactionList").innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
 
+  if(!data?.length){
+    $("transactionList").innerHTML=
+      `<div class="empty">No transactions yet.</div>`;
+    return;
+  }
+
+  $("transactionList").innerHTML=data.map(t=>{
+
+    const amount=Number(t.amount||0);
+
+    const type=String(t.type||"transaction")
+      .replaceAll("_"," ")
+      .replace(/\b\w/g,c=>c.toUpperCase());
+
+    const status=String(t.status||"")
+      .replaceAll("_"," ");
+
+    return `
+      <div class="list-item">
+
+        <div class="actions" style="justify-content:space-between">
+          <b>${esc(type)}</b>
+          <span class="badge">${esc(status)}</span>
+        </div>
+
+        <p>
+          <b>₦${amount.toLocaleString()}</b>
+        </p>
+
+        <small class="muted">
+          Reference: ${esc(t.reference||"—")}
+        </small>
+
+        ${
+          t.provider
+            ? `<small class="muted">Provider: ${esc(t.provider)}</small>`
+            : ""
+        }
+
+        ${
+          t.provider_reference
+            ? `<small class="muted">
+                Provider reference: ${esc(t.provider_reference)}
+              </small>`
+            : ""
+        }
+
+        <small class="muted">
+          ${t.created_at
+            ? new Date(t.created_at).toLocaleString()
+            : ""}
+        </small>
+
+      </div>
+    `;
+  }).join("");
+}
 function openDeposit(){
   if(!currentUser)return show("auth");
 
@@ -1176,6 +1224,66 @@ async function requestWithdraw(){
   toast("Withdrawal request submitted.");
 }
 
+async function loadWithdrawals(){
+
+  if(!currentUser)return;
+
+  const {data,error}=await sb
+    .from("withdrawals")
+    .select("id,amount,status,created_at,processed_at")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(50);
+
+  if(error){
+    const el=$("withdrawalList");
+    if(el)
+      el.innerHTML=
+        `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  const el=$("withdrawalList");
+
+  if(!el)return;
+
+  if(!data?.length){
+    el.innerHTML=
+      `<div class="empty">No withdrawal requests yet.</div>`;
+    return;
+  }
+
+  el.innerHTML=data.map(w=>`
+    <div class="list-item">
+
+      <div class="actions" style="justify-content:space-between">
+        <b>₦${Number(w.amount||0).toLocaleString()}</b>
+        <span class="badge">${esc(w.status||"pending")}</span>
+      </div>
+
+      <p class="muted">
+        Withdrawal request
+      </p>
+
+      <small class="muted">
+        Requested:
+        ${w.created_at
+          ? new Date(w.created_at).toLocaleString()
+          : ""}
+      </small>
+
+      ${
+        w.processed_at
+          ? `<small class="muted">
+              Processed:
+              ${new Date(w.processed_at).toLocaleString()}
+            </small>`
+          : ""
+      }
+
+    </div>
+  `).join("");
+}
 async function submitSupport(){
   if(!currentUser)return show("auth");
 
