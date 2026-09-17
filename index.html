@@ -1261,20 +1261,47 @@ loadBankList();
       .join("");
 } 
 async function requestWithdraw(){
+
   const amount=Number($("withdrawAmount").value);
 
   if(!Number.isFinite(amount)||amount<100)
     return toast("Enter a valid amount.",true);
 
-  const {error}=await sb.rpc("request_withdrawal",{
-    p_amount:amount
-  });
+  const {data:withdrawalId,error}=await sb.rpc(
+    "request_withdrawal",
+    {
+      p_amount:amount
+    }
+  );
 
-  if(error)return toast(error.message,true);
+  if(error)
+    return toast(error.message,true);
+
+  if(!withdrawalId)
+    return toast("Withdrawal request was not created.",true);
+
+  const {data,error:paymentError}=await sb.functions.invoke(
+    "mavora-paystack",
+    {
+      body:{
+        type:"withdrawal",
+        withdrawal_id:withdrawalId
+      }
+    }
+  );
+
+  if(paymentError)
+    return toast(paymentError.message,true);
+
+  if(!data?.success)
+    return toast(
+      data?.error||"Withdrawal could not be processed.",
+      true
+    );
 
   closeModal();
 
-  toast("Withdrawal request submitted.");
+  toast("Withdrawal is being processed.");
 }
 
 async function verifyBankAccount(){
