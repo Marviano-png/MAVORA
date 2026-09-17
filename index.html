@@ -344,9 +344,19 @@ async function startJobPayment(applicationId){
   });
 
   if(error){
-    console.error("Payment initialization error:",error);
-    return toast(error.message||"Could not start payment.",true);
-  }
+  console.error("Payment initialization error:", error);
+
+  let message = error.message || "Could not start payment.";
+
+  try {
+    const response = await error.context?.json();
+    if(response?.error){
+      message = response.error;
+    }
+  } catch(e) {}
+
+  return toast(message, true);
+}
 
   if(!data?.authorization_url){
     console.error("Unexpected payment response:",data);
