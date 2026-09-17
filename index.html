@@ -1694,12 +1694,13 @@ async function startJobPayment(applicationId){
   }
 
   if(!data?.authorization_url){
-    return toast(
-      data?.message||
-      "Payment could not be initialized.",
-      true
-    );
-  }
+  return toast(
+    data?.error ||
+    data?.message ||
+    "Payment could not be initialized.",
+    true
+  );
+}
 
   toast("Opening secure Paystack payment...");
 
