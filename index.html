@@ -1339,7 +1339,7 @@ if(error){
   if(result)
     result.innerHTML=
       `<div class="notice error">
-        Bank verification failed. Please check the selected bank and account number.
+        ${esc(error.message||"Bank verification failed.")}
       </div>`;
 
   console.error("Bank verification error:",error);
