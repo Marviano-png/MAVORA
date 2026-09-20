@@ -562,6 +562,10 @@ async function loadWork(){
         0
       );
 
+    const submitted =
+      a.work_status === "submitted" ||
+      a.work_status === "Submitted";
+
     return `
       <div class="card">
 
@@ -583,53 +587,73 @@ async function loadWork(){
 
         <hr>
 
-        <h4>Work submission</h4>
+        ${
+          submitted
+            ? `
+              <div class="notice success">
+                <strong>✓ Work submitted</strong>
+                <p>
+                  Your work has been submitted to the client for review.
+                </p>
 
-        <textarea
-          id="work_${a.id}"
-          placeholder="Describe or submit your completed work"
-          rows="5"
-        ></textarea>
+                ${
+                  a.work_submission
+                    ? `
+                      <div class="card">
+                        <strong>Your submission:</strong>
+                        <p>${esc(a.work_submission)}</p>
+                      </div>
+                    `
+                    : ""
+                }
+              </div>
+            `
+            : `
+              <h4>Work submission</h4>
 
-        <br><br>
+              <textarea
+                id="work_${a.id}"
+                placeholder="Describe or submit your completed work"
+                rows="5"
+              ></textarea>
 
-        <label>
-          Attach file (optional)
-        </label>
+              <br><br>
 
-        <input
-          type="file"
-          id="file_${a.id}"
-        >
+              <label>
+                Attach file (optional)
+              </label>
 
-        <br><br>
+              <input
+                type="file"
+                id="file_${a.id}"
+              >
 
-        <button
-          class="btn success"
-          onclick="submitWork('${a.id}')"
-        >
-          Submit Work
-        </button>
+              <br><br>
 
-        <button
-          class="btn"
-          onclick="requestRevision('${a.id}')"
-        >
-          Request Revision
-        </button>
+              <button
+                class="btn success"
+                onclick="submitWork('${a.id}')">
+                Submit Work
+              </button>
 
-        <button
-          class="btn"
-          onclick="disputeWork('${a.id}')"
-        >
-          Dispute
-        </button>
+              <button
+                class="btn"
+                onclick="requestRevision('${a.id}')">
+                Request Revision
+              </button>
+
+              <button
+                class="btn"
+                onclick="disputeWork('${a.id}')">
+                Dispute
+              </button>
+            `
+        }
 
       </div>
     `;
 
   }).join("");
-
 }
  async function submitWork(id){
 
