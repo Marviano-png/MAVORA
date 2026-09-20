@@ -531,46 +531,78 @@ async function loadWork(){
   }).join("");
 
 }
-  async function submitWork(id){
-  const sub=$("sub_"+id).value.trim();
-  const file=$("file_"+id).files[0];
+ async function submitWork(id){
 
-  if(!sub&&!file)
+  const subEl=$("work_"+id);
+  const fileEl=$("file_"+id);
+
+  if(!subEl)
+    return toast("Work submission box was not found.",true);
+
+  const sub=subEl.value.trim();
+  const file=fileEl?.files?.[0];
+
+  if(!sub && !file)
     return toast("Add a submission or file.",true);
 
   if(file){
-    if(file.size>15*1024*1024)
-      return toast("File is too large. Maximum 15MB.",true);
 
-    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-    const path=`${currentUser.id}/${id}/${Date.now()}_${safe}`;
+    if(file.size>15*1024*1024)
+      return toast(
+        "File is too large. Maximum 15MB.",
+        true
+      );
+
+    const safe=file.name.replace(
+      /[^a-zA-Z0-9._-]/g,
+      "_"
+    );
+
+    const path=
+      `${currentUser.id}/${id}/${Date.now()}_${safe}`;
 
     const {error}=await sb.storage
       .from("mavora-work")
-      .upload(path,file,{upsert:false});
+      .upload(
+        path,
+        file,
+        {upsert:false}
+      );
 
-    if(error)return toast(error.message,true);
+    if(error)
+      return toast(error.message,true);
 
-    const {error:e}=await sb.from("work_files").insert({
-      application_id:id,
-      uploader_id:currentUser.id,
-      file_path:path,
-      file_name:file.name,
-      mime_type:file.type,
-      size_bytes:file.size
-    });
+    const {error:e}=
+      await sb
+        .from("work_files")
+        .insert({
+          application_id:id,
+          uploader_id:currentUser.id,
+          file_path:path,
+          file_name:file.name,
+          mime_type:file.type,
+          size_bytes:file.size
+        });
 
-    if(e)return toast(e.message,true);
+    if(e)
+      return toast(e.message,true);
   }
 
-  const {error}=await sb.rpc("submit_work",{
-    p_application_id:id,
-    p_submission:sub
-  });
+  const {error}=await sb.rpc(
+    "submit_work",
+    {
+      p_application_id:id,
+      p_submission:sub
+    }
+  );
 
-  if(error)return toast(error.message,true);
+  if(error)
+    return toast(error.message,true);
 
-  toast("Work submitted successfully.");
+  toast(
+    "Work submitted successfully."
+  );
+
   loadWork();
 }
 
