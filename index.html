@@ -1660,54 +1660,98 @@ async function chooseWorker(jobId,applicationId){
 }
 
 async function startJobPayment(applicationId){
+
   if(!currentUser)
     return show("auth");
 
-  const {
-    data:sessionData,
-    error:sessionError
-  }=await sb.auth.getSession();
+  if(!applicationId)
+    return toast("Payment application is missing.", true);
 
-  if(
-    sessionError||
-    !sessionData?.session
-  ){
-    return toast(
-      "Your session has expired. Please log in again.",
-      true
-    );
-  }
+  try{
 
-  const {data,error}=await sb.functions.invoke(
-    "mavora-paystack",
-    {
-      body:{
-        application_id:applicationId
+    const {data,error}=await sb.functions.invoke(
+      "mavora-paystack",
+      {
+        body:{
+          application_id:applicationId
+        }
       }
-    }
-  );
+    );
 
-  if(error){
+    if(error){
+
+      console.error(
+        "MAVORA PAYMENT ERROR:",
+        error
+      );
+
+      if(error.context){
+
+        try{
+
+          const details=
+            await error.context.json();
+
+          console.error(
+            "MAVORA FUNCTION RESPONSE:",
+            details
+          );
+
+          return toast(
+            details?.error ||
+            details?.message ||
+            JSON.stringify(details),
+            true
+          );
+
+        }catch(e){
+
+          console.error(
+            "Could not read function response:",
+            e
+          );
+
+        }
+      }
+
+      return toast(
+        error.message ||
+        "Payment could not be started.",
+        true
+      );
+    }
+
+    console.log(
+      "MAVORA PAYMENT RESPONSE:",
+      data
+    );
+
+    if(!data?.authorization_url){
+
+      return toast(
+        data?.error ||
+        "Payment provider did not return a checkout link.",
+        true
+      );
+    }
+
+    window.location.href =
+      data.authorization_url;
+
+  }catch(error){
+
+    console.error(
+      "MAVORA PAYMENT EXCEPTION:",
+      error
+    );
+
     return toast(
-      error.message||"Unable to start payment.",
+      error?.message ||
+      "Unable to start payment.",
       true
     );
   }
-
-  if(!data?.authorization_url){
-  return toast(
-    data?.error ||
-    data?.message ||
-    "Payment could not be initialized.",
-    true
-  );
 }
-
-  toast("Opening secure Paystack payment...");
-
-  window.location.href=data.authorization_url;
-}
-
 async function approveWork(id){
   if(!currentUser)
     return show("auth");
