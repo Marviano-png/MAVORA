@@ -191,20 +191,24 @@ async function loadMyJobs(){
   if(!myJobList) return;
 
   if(error){
+
     myJobList.innerHTML=
       `<div class="notice error">${esc(error.message)}</div>`;
+
     return;
   }
 
   if(!jobs?.length){
+
     myJobList.innerHTML=
       "<div class='empty'>You have not posted any jobs.</div>";
+
     return;
   }
 
   const jobIds=jobs.map(j=>j.id);
 
-  const {data:applications, error:appError}=await sb
+  const {data:applications,error:appError}=await sb
     .from("applications")
     .select(`
       id,
@@ -212,20 +216,38 @@ async function loadMyJobs(){
       worker_id,
       status,
       work_status,
-      submission,
+      work_submission,
+      submitted_at,
       updated_at
     `)
     .in("job_id",jobIds)
-    .in("status",["hired","accepted","awaiting_payment"]);
+    .in("status",[
+      "hired",
+      "accepted",
+      "awaiting_payment"
+    ])
+    .order("updated_at",{ascending:false});
 
   if(appError){
-    console.error("Client applications:",appError);
+
+    console.error(
+      "Client applications:",
+      appError
+    );
+
   }
 
   const appMap={};
 
   (applications||[]).forEach(a=>{
-    appMap[a.job_id]=a;
+
+    if(
+      !appMap[a.job_id] ||
+      a.updated_at > appMap[a.job_id].updated_at
+    ){
+      appMap[a.job_id]=a;
+    }
+
   });
 
   myJobList.innerHTML=jobs.map(j=>{
@@ -257,17 +279,26 @@ async function loadMyJobs(){
           workSubmitted
             ? `
               <div class="notice success">
-                <strong>Work submitted</strong>
+
+                <strong>✓ Work submitted</strong>
+
                 <p>
                   The worker has submitted the work for your review.
                 </p>
 
                 ${
-                  app.submission
+                  app.work_submission
                     ? `
                       <div class="card">
-                        <strong>Worker submission:</strong>
-                        <p>${esc(app.submission)}</p>
+
+                        <strong>
+                          Worker submission:
+                        </strong>
+
+                        <p>
+                          ${esc(app.work_submission)}
+                        </p>
+
                       </div>
                     `
                     : ""
@@ -288,6 +319,7 @@ async function loadMyJobs(){
                   </button>
 
                 </div>
+
               </div>
             `
             : ""
