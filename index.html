@@ -466,155 +466,174 @@ async function loadApplications(){
     :"<div class='empty'>You have not submitted any applications yet.</div>";
 }
 async function loadWork(){
-
-  if(!currentUser) return;
+  if(!currentUser)return;
 
   const {data,error}=await sb
     .from("applications")
     .select(`
       *,
       jobs(
+        id,
         title,
         description,
         budget,
-        client_id,
+        category,
+        job_mode,
+        experience_level,
+        state,
+        lga,
+        city,
+        area,
+        delivery_details,
+        deadline,
         status
       )
     `)
     .eq("worker_id",currentUser.id)
-    .in("status",["hired","accepted"])
+    .eq("status","hired")
     .order("updated_at",{ascending:false});
 
-  const workList=$("workList");
-
-  if(!workList) return;
-
   if(error){
-
-    console.error("Load Work:",error);
-
-    workList.innerHTML=`
-      <div class="card">
-        <p>${esc(error.message)}</p>
-      </div>
-    `;
-
+    $("workList").innerHTML=
+      `<div class='notice error'>${esc(error.message)}</div>`;
     return;
   }
 
-  if(!data?.length){
+  $("workList").innerHTML=data?.length
+    ? data.map(a=>{
+        const j=a.jobs||{};
+        const completed=a.work_status==="completed";
+        const submitted=a.work_status==="submitted";
+        const revision=a.work_status==="revision_requested";
 
-    workList.innerHTML=`
-      <div class="card">
-        <p>No active work.</p>
-      </div>
-    `;
+        return `
+          <div class="card">
 
-    return;
-  }
+            <h2>${esc(j.title||"Work")}</h2>
 
-  workList.innerHTML=data.map(a=>{
+            <span class="badge">
+              ${completed ? "Completed" :
+                submitted ? "Submitted" :
+                revision ? "Revision Requested" :
+                "In Progress"}
+            </span>
 
-    const agreedAmount=
-      Number(
-        a.proposed_price ??
-        a.agreed_price ??
-        a.jobs?.budget ??
-        0
-      );
+            <div class="notice">
+              <strong>What the client needs</strong>
+              <p>${esc(j.description||"No job description provided.")}</p>
+            </div>
 
-    const submitted =
-      a.work_status === "submitted" ||
-      a.work_status === "Submitted";
+            <div class="grid">
 
-    return `
-      <div class="card">
-
-        <h3>${esc(a.jobs?.title || "Active Work")}</h3>
-
-        <p>
-          <b>Status:</b>
-          ${esc(a.status || "hired")}
-        </p>
-
-        <p>
-          <b>Budget:</b>
-          ₦${agreedAmount.toLocaleString()}
-        </p>
-
-        <p>
-          ${esc(a.jobs?.description || "")}
-        </p>
-
-        <hr>
-
-        ${
-          submitted
-            ? `
-              <div class="notice success">
-                <strong>✓ Work submitted</strong>
-                <p>
-                  Your work has been submitted to the client for review.
-                </p>
-
-                ${
-                  a.work_submission
-                    ? `
-                      <div class="card">
-                        <strong>Your submission:</strong>
-                        <p>${esc(a.work_submission)}</p>
-                      </div>
-                    `
-                    : ""
-                }
+              <div class="card">
+                <b>Type of work</b>
+                <p>${esc(j.category||"Not specified")}</p>
               </div>
-            `
-            : `
-              <h4>Work submission</h4>
 
-              <textarea
-                id="work_${a.id}"
-                placeholder="Describe or submit your completed work"
-                rows="5"
-              ></textarea>
+              <div class="card">
+                <b>Budget</b>
+                <p>₦${Number(j.budget||0).toLocaleString()}</p>
+              </div>
 
-              <br><br>
+              <div class="card">
+                <b>Work mode</b>
+                <p>${esc(j.job_mode||"Not specified")}</p>
+              </div>
 
-              <label>
-                Attach file (optional)
-              </label>
+              <div class="card">
+                <b>Experience</b>
+                <p>${esc(j.experience_level||"Not specified")}</p>
+              </div>
 
-              <input
-                type="file"
-                id="file_${a.id}"
-              >
+            </div>
 
-              <br><br>
+            ${
+              j.job_mode!=="Remote"
+              ? `
+                <div class="notice">
+                  <strong>Location</strong>
+                  <p>
+                    ${esc(j.state||"")}
+                    ${j.lga ? " · "+esc(j.lga):""}
+                    ${j.city ? " · "+esc(j.city):""}
+                    ${j.area ? " · "+esc(j.area):""}
+                  </p>
+                </div>
+              `
+              : ""
+            }
 
-              <button
-                class="btn success"
-                onclick="submitWork('${a.id}')">
-                Submit Work
-              </button>
+            ${
+              j.job_mode==="Delivery" && j.delivery_details
+              ? `
+                <div class="notice">
+                  <strong>Delivery information</strong>
+                  <p>${esc(j.delivery_details)}</p>
+                </div>
+              `
+              : ""
+            }
 
-              <button
-                class="btn"
-                onclick="requestRevision('${a.id}')">
-                Request Revision
-              </button>
+            ${
+              j.deadline
+              ? `
+                <div class="notice">
+                  <strong>Deadline</strong>
+                  <p>${new Date(j.deadline).toLocaleString()}</p>
+                </div>
+              `
+              : ""
+            }
 
-              <button
-                class="btn"
-                onclick="disputeWork('${a.id}')">
-                Dispute
-              </button>
-            `
-        }
+            ${
+              completed
+              ? `
+                <div class="notice">
+                  ✓ This work has been approved and completed.
+                  <br>
+                  Payment has been released.
+                </div>
+              `
+              : submitted
+              ? `
+                <div class="notice">
+                  ✓ Your work has been submitted.
+                  <br>
+                  Waiting for the client to review it.
+                </div>
+              `
+              : `
+                <textarea
+                  id="sub_${a.id}"
+                  placeholder="Describe what you completed"
+                >${esc(a.work_submission||"")}</textarea>
 
-      </div>
-    `;
+                <input
+                  id="file_${a.id}"
+                  type="file"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.zip"
+                >
 
-  }).join("");
+                <div class="actions">
+                  <button
+                    class="btn"
+                    onclick="submitWork('${a.id}')">
+                    ${revision ? "Resubmit Work" : "Submit Work"}
+                  </button>
+
+                  <button
+                    class="btn ghost"
+                    onclick="openDispute('${a.id}')">
+                    Dispute
+                  </button>
+                </div>
+              `
+            }
+
+          </div>
+        `;
+      }).join("")
+    : "<div class='empty'>No active work.</div>";
 }
  async function submitWork(id){
 
