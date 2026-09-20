@@ -177,74 +177,174 @@ async function postJob(){
  const {error}=await sb.from("jobs").insert(payload);if(error)return toast(error.message,true);toast("Job published");show("myjobs")
 }
 async function loadMyJobs(){
-  const {data,error}=await sb
+
+  if(!currentUser) return;
+
+  const {data:jobs,error}=await sb
     .from("jobs")
     .select("*")
     .eq("client_id",currentUser.id)
     .order("created_at",{ascending:false});
 
-  $("myJobList").innerHTML =
-    error
-      ? `<div class='notice error'>${esc(error.message)}</div>`
-      : data?.length
-        ? data.map(j=>`
-          <div class="card">
-            <h3>${esc(j.title)}</h3>
+  const myJobList=$("myJobList");
 
-            <span class="badge">
-              ${esc(j.status)}
-            </span>
+  if(!myJobList) return;
 
-            <p>
-              ₦${Number(j.budget||0).toLocaleString()}
-              · ${esc(j.job_mode||"")}
-            </p>
+  if(error){
+    myJobList.innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
 
-            <div class="actions">
+  if(!jobs?.length){
+    myJobList.innerHTML=
+      "<div class='empty'>You have not posted any jobs.</div>";
+    return;
+  }
 
-              <button class="btn"
-                onclick="viewApplicants('${j.id}')">
-                Applicants
-              </button>
+  const jobIds=jobs.map(j=>j.id);
 
-              ${
-                j.status==="awaiting_payment"
-                  ? `
-                    <button class="btn success"
-                      onclick="payPendingJob('${j.id}')">
-                      Pay Now
-                    </button>
-                  `
-                  : ""
-              }
+  const {data:applications, error:appError}=await sb
+    .from("applications")
+    .select(`
+      id,
+      job_id,
+      worker_id,
+      status,
+      work_status,
+      submission,
+      updated_at
+    `)
+    .in("job_id",jobIds)
+    .in("status",["hired","accepted","awaiting_payment"]);
 
-              <button class="btn ghost"
-                onclick="editJob('${j.id}')">
-                Edit
-              </button>
+  if(appError){
+    console.error("Client applications:",appError);
+  }
 
-              ${
-                j.status==="open"
-                  ? `
-                    <button class="btn danger"
-                      onclick="closeJob('${j.id}')">
-                      Close
-                    </button>
-                  `
-                  : j.status!=="awaiting_payment"
+  const appMap={};
+
+  (applications||[]).forEach(a=>{
+    appMap[a.job_id]=a;
+  });
+
+  myJobList.innerHTML=jobs.map(j=>{
+
+    const app=appMap[j.id];
+
+    const workSubmitted=
+      app &&
+      (
+        app.work_status==="submitted" ||
+        app.work_status==="Submitted"
+      );
+
+    return `
+      <div class="card">
+
+        <h3>${esc(j.title)}</h3>
+
+        <span class="badge">
+          ${esc(j.status)}
+        </span>
+
+        <p>
+          ₦${Number(j.budget||0).toLocaleString()}
+          · ${esc(j.job_mode||"")}
+        </p>
+
+        ${
+          workSubmitted
+            ? `
+              <div class="notice success">
+                <strong>Work submitted</strong>
+                <p>
+                  The worker has submitted the work for your review.
+                </p>
+
+                ${
+                  app.submission
                     ? `
-                      <button class="btn success"
-                        onclick="reopenJob('${j.id}')">
-                        Reopen
-                      </button>
+                      <div class="card">
+                        <strong>Worker submission:</strong>
+                        <p>${esc(app.submission)}</p>
+                      </div>
                     `
                     : ""
-              }
+                }
 
-            </div>
-          </div>
-        `).join("")
-        : "<div class='empty'>You have not posted any jobs.</div>";
+                <div class="actions">
+
+                  <button
+                    class="btn success"
+                    onclick="approveWork('${app.id}')">
+                    Approve Work
+                  </button>
+
+                  <button
+                    class="btn"
+                    onclick="requestRevision('${app.id}')">
+                    Request Revision
+                  </button>
+
+                </div>
+              </div>
+            `
+            : ""
+        }
+
+        <div class="actions">
+
+          <button
+            class="btn"
+            onclick="viewApplicants('${j.id}')">
+            Applicants
+          </button>
+
+          ${
+            j.status==="awaiting_payment"
+              ? `
+                <button
+                  class="btn success"
+                  onclick="payPendingJob('${j.id}')">
+                  Pay Now
+                </button>
+              `
+              : ""
+          }
+
+          <button
+            class="btn ghost"
+            onclick="editJob('${j.id}')">
+            Edit
+          </button>
+
+          ${
+            j.status==="open"
+              ? `
+                <button
+                  class="btn danger"
+                  onclick="closeJob('${j.id}')">
+                  Close
+                </button>
+              `
+              : j.status!=="awaiting_payment"
+                ? `
+                  <button
+                    class="btn success"
+                    onclick="reopenJob('${j.id}')">
+                    Reopen
+                  </button>
+                `
+                : ""
+          }
+
+        </div>
+
+      </div>
+    `;
+
+  }).join("");
 }
 async function payPendingJob(jobId){
 
