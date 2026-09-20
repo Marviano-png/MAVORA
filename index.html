@@ -177,96 +177,135 @@ async function postJob(){
  const {error}=await sb.from("jobs").insert(payload);if(error)return toast(error.message,true);toast("Job published");show("myjobs")
 }
 async function loadMyJobs(){
-
-  const {data,error}=await sb
+  const {data:jobs,error}=await sb
     .from("jobs")
     .select("*")
     .eq("client_id",currentUser.id)
     .order("created_at",{ascending:false});
 
   if(error){
-    $("myJobList").innerHTML=
-      `<div class="notice error">${esc(error.message)}</div>`;
+    $("myJobList").innerHTML=`<div class='notice error'>${esc(error.message)}</div>`;
     return;
   }
 
-  $("myJobList").innerHTML=data?.length
-    ? data.map(j=>{
+  if(!jobs?.length){
+    $("myJobList").innerHTML="<div class='empty'>You have not posted any jobs.</div>";
+    return;
+  }
 
-        const status=j.status;
+  const jobIds=jobs.map(j=>j.id);
 
-        let statusText=status;
+  const {data:apps,error:appError}=await sb
+    .from("applications")
+    .select("id,job_id,worker_id,status,work_status,work_submission,submitted_at")
+    .in("job_id",jobIds);
 
-        if(status==="close" || status==="closed"){
-          statusText="Completed / Closed";
-        }
+  if(appError){
+    $("myJobList").innerHTML=`<div class='notice error'>${esc(appError.message)}</div>`;
+    return;
+  }
 
-        let actions="";
+  const appMap={};
 
-        if(status==="open"){
-          actions=`
-            <button class="btn"
-              onclick="viewApplicants('${j.id}')">
-              Applicants
-            </button>
+  (apps||[]).forEach(a=>{
+    if(!appMap[a.job_id]) appMap[a.job_id]=[];
+    appMap[a.job_id].push(a);
+  });
 
-            <button class="btn ghost"
-              onclick="editJob('${j.id}')">
-              Edit
-            </button>
+  $("myJobList").innerHTML=jobs.map(j=>{
+    const jobApps=appMap[j.id]||[];
 
-            <button class="btn danger"
-              onclick="closeJob('${j.id}')">
-              Close
-            </button>
-          `;
-        }
+    const selectedApp=jobApps.find(a=>
+      a.worker_id===j.hired_worker_id &&
+      a.status==="hired"
+    );
 
-        else if(status==="in_progress"){
-          actions=`
-            <button class="btn"
-              onclick="viewApplicants('${j.id}')">
-              View Worker
-            </button>
-          `;
-        }
+    const submitted=selectedApp?.work_status==="submitted";
+    const completed=selectedApp?.work_status==="completed";
 
-        else if(status==="close" || status==="closed"){
-          actions=`
-            <div class="notice successbox">
-              ✓ Work approved
-              <br>
-              <span class="muted">
-                This job has been completed and payment released.
-              </span>
+    return `
+      <div class="card">
+        <h3>${esc(j.title)}</h3>
+
+        <span class="badge">${esc(j.status)}</span>
+
+        <p>
+          ₦${Number(j.budget||0).toLocaleString()}
+          · ${esc(j.job_mode||"")}
+        </p>
+
+        ${
+          submitted
+          ? `
+            <div class="notice">
+              ✓ Work submitted<br>
+              The selected worker has submitted this job for your review.
             </div>
-          `;
-        }
-
-        return `
-          <div class="card">
-
-            <h3>${esc(j.title)}</h3>
-
-            <span class="badge">
-              ${esc(statusText)}
-            </span>
 
             <p>
-              ₦${Number(j.budget||0).toLocaleString()}
-              ·
-              ${esc(j.job_mode||"")}
+              <strong>Worker submission:</strong><br>
+              ${esc(selectedApp.work_submission||"")}
             </p>
 
             <div class="actions">
-              ${actions}
+              <button class="btn success"
+                onclick="approveWork('${selectedApp.id}')">
+                Approve Work
+              </button>
+
+              <button class="btn warning"
+                onclick="requestRevision('${selectedApp.id}')">
+                Request Revision
+              </button>
             </div>
+          `
+          : completed
+          ? `
+            <div class="notice">
+              ✓ Work approved and completed.
+            </div>
+          `
+          : j.hired_worker_id
+          ? `
+            <div class="notice">
+              Worker selected. Waiting for the worker to submit this job.
+            </div>
+          `
+          : ""
+        }
 
-          </div>
-        `;
+        <div class="actions">
+          <button class="btn"
+            onclick="viewApplicants('${j.id}')">
+            Applicants
+          </button>
 
-      }).join("")
-    : "<div class='empty'>You have not posted any jobs.</div>";
+          <button class="btn ghost"
+            onclick="editJob('${j.id}')">
+            Edit
+          </button>
+
+          ${
+            j.status==="open"
+            ? `
+              <button class="btn danger"
+                onclick="closeJob('${j.id}')">
+                Close
+              </button>
+            `
+            : j.status!=="closed"
+            ? `
+              <button class="btn success"
+                onclick="reopenJob('${j.id}')">
+                Reopen
+              </button>
+            `
+            : ""
+          }
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 async function payPendingJob(jobId){
 
