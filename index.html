@@ -1792,6 +1792,160 @@ sb.auth.onAuthStateChange(
     nav();
   }
 })();
+  /* =========================
+   MAVORA RATINGS
+   ========================= */
+
+async function loadRatings(){
+
+  if(!currentUser) return;
+
+  const {data:contracts,error}=await sb
+    .from("contracts")
+    .select(`
+      id,
+      client_id,
+      worker_id,
+      status,
+      agreed_price,
+      jobs(title)
+    `)
+    .eq("status","completed")
+    .or(
+      `client_id.eq.${currentUser.id},worker_id.eq.${currentUser.id}`
+    )
+    .order("updated_at",{ascending:false});
+
+  if(error){
+    console.error("Ratings:",error);
+    return;
+  }
+
+  if(!contracts?.length) return;
+
+  const {data:ratings}=await sb
+    .from("ratings")
+    .select("contract_id,reviewee_id")
+    .eq("reviewer_id",currentUser.id);
+
+  const rated=new Set(
+    (ratings||[]).map(r=>`${r.contract_id}_${r.reviewee_id}`)
+  );
+
+  let html="";
+
+  for(const c of contracts){
+
+    const amClient=c.client_id===currentUser.id;
+    const revieweeId=amClient ? c.worker_id : c.client_id;
+    const revieweeName=amClient ? "Worker" : "Client";
+
+    if(rated.has(`${c.id}_${revieweeId}`))
+      continue;
+
+    html+=`
+      <div class="card mavora-rating-card">
+        <h3>⭐ Rate your ${revieweeName}</h3>
+
+        <p>
+          ${esc(c.jobs?.title||"Completed Job")}
+        </p>
+
+        <label>Rating</label>
+
+        <select id="rating_${c.id}">
+          <option value="5">⭐⭐⭐⭐⭐ 5</option>
+          <option value="4">⭐⭐⭐⭐ 4</option>
+          <option value="3">⭐⭐⭐ 3</option>
+          <option value="2">⭐⭐ 2</option>
+          <option value="1">⭐ 1</option>
+        </select>
+
+        <label>Review (optional)</label>
+
+        <textarea
+          id="review_${c.id}"
+          placeholder="Share your experience">
+        </textarea>
+
+        <button class="btn success"
+          onclick="submitMavoraRating(
+            '${c.id}',
+            '${revieweeId}'
+          )">
+          Submit Rating
+        </button>
+      </div>
+    `;
+  }
+
+  if(!html) return;
+
+  let panel=$("mavoraRatingsPanel");
+
+  if(!panel){
+
+    panel=document.createElement("div");
+    panel.id="mavoraRatingsPanel";
+
+    const workList=$("workList");
+
+    if(workList)
+      workList.parentNode.appendChild(panel);
+    else
+      document.body.appendChild(panel);
+  }
+
+  panel.innerHTML=`
+    <div class="card">
+      <h2>⭐ Ratings & Reviews</h2>
+      ${html}
+    </div>
+  `;
+}
+
+
+async function submitMavoraRating(contractId,revieweeId){
+
+  if(!currentUser)
+    return show("auth");
+
+  const ratingEl=$(`rating_${contractId}`);
+  const reviewEl=$(`review_${contractId}`);
+
+  const rating=Number(ratingEl?.value||5);
+  const review=reviewEl?.value||"";
+
+  const {data,error}=await sb.rpc(
+    "submit_rating",
+    {
+      p_contract_id:contractId,
+      p_reviewee_id:revieweeId,
+      p_rating:rating,
+      p_review:review
+    }
+  );
+
+  if(error)
+    return toast(error.message,true);
+
+  if(data?.success===false)
+    return toast(
+      data.message||"Rating could not be submitted.",
+      true
+    );
+
+  toast("⭐ Rating submitted successfully.");
+
+  loadRatings();
+}
+
+
+/* Keep checking because currentUser is loaded after authentication */
+setInterval(()=>{
+  if(currentUser)
+    loadRatings();
+},5000);
 </script>
 </body>
 </html>
