@@ -287,13 +287,17 @@ async function payPendingJob(jobId){
 
   const {data:job,error:jobError}=await sb
     .from("jobs")
-    .select("id,hired_worker_id,title,budget")
+    .select("id,hired_worker_id,title,budget,status")
     .eq("id",jobId)
     .eq("client_id",currentUser.id)
     .maybeSingle();
 
   if(jobError||!job){
     return toast(jobError?.message||"Job not found.",true);
+  }
+
+  if(job.status!=="awaiting_payment"){
+    return toast("This job is not awaiting payment.",true);
   }
 
   if(!job.hired_worker_id){
@@ -305,7 +309,7 @@ async function payPendingJob(jobId){
     .select("id")
     .eq("job_id",job.id)
     .eq("worker_id",job.hired_worker_id)
-    .in("status",["hired","awaiting_payment"])
+    .eq("status","hired")
     .maybeSingle();
 
   if(applicationError||!application){
@@ -315,12 +319,12 @@ async function payPendingJob(jobId){
     );
   }
 
-  const {data,resultError}=await sb.rpc("pay_job_from_wallet",{
+  const {data,error}=await sb.rpc("pay_job_from_wallet",{
     p_application_id:application.id
   });
 
-  if(resultError){
-    return toast(resultError.message,true);
+  if(error){
+    return toast(error.message,true);
   }
 
   if(!data?.success){
@@ -333,14 +337,17 @@ async function payPendingJob(jobId){
       $("modalBody").innerHTML=`
         <div class="notice error">
           <strong>Payment cannot be completed yet.</strong>
+
           <p>
-            This job requires the full agreed amount of
-            <strong>₦${Number(data.required_amount||0).toLocaleString()}</strong>.
+            Full payment required:
+            <strong>₦${Number(data.required_amount||0).toLocaleString()}</strong>
           </p>
+
           <p>
             Available wallet balance:
             <strong>₦${Number(data.available_balance||0).toLocaleString()}</strong>
           </p>
+
           <p>
             You still need:
             <strong>₦${shortfall.toLocaleString()}</strong>
@@ -361,7 +368,10 @@ async function payPendingJob(jobId){
       return openModal();
     }
 
-    return toast(data?.message||"Payment could not be completed.",true);
+    return toast(
+      data?.message||"Payment could not be completed.",
+      true
+    );
   }
 
   closeModal();
@@ -373,6 +383,33 @@ async function payPendingJob(jobId){
   loadMyJobs();
   loadWallet();
   loadTransactions();
+}
+
+
+async function chooseWorker(jobId,applicationId){
+  if(!currentUser)return show("auth");
+
+  if(!confirm(
+    "Choose this worker? The agreed payment will be made from your MAVORA wallet."
+  ))return;
+
+  const {error}=await sb.rpc("choose_worker",{
+    p_job_id:jobId,
+    p_application_id:applicationId
+  });
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  closeModal();
+
+  toast(
+    "Worker selected successfully. Full payment is required before work can start."
+  );
+
+  loadMyJobs();
+  loadWallet();
 }
 async function closeJob(id){if(!confirm("Close this job?"))return;const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"closed"});if(error)return toast(error.message,true);loadMyJobs()}
 async function reopenJob(id){const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"open"});if(error)return toast(error.message,true);loadMyJobs()}
