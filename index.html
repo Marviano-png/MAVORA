@@ -405,63 +405,131 @@ async function loadApplications(){
     :"<div class='empty'>You have not submitted any applications yet.</div>";
 }
 async function loadWork(){
-  if(!currentUser)return;
+
+  if(!currentUser) return;
 
   const {data,error}=await sb
     .from("applications")
-    .select("*,jobs(title,description,budget,client_id,status)")
+    .select(`
+      *,
+      jobs(
+        title,
+        description,
+        budget,
+        client_id,
+        status
+      )
+    `)
     .eq("worker_id",currentUser.id)
     .in("status",["hired","accepted"])
     .order("updated_at",{ascending:false});
 
+  const workList=$("workList");
+
+  if(!workList) return;
+
   if(error){
-    $("workList").innerHTML=
-      `<div class="notice error">${esc(error.message)}</div>`;
+
+    console.error("Load Work:",error);
+
+    workList.innerHTML=`
+      <div class="card">
+        <p>${esc(error.message)}</p>
+      </div>
+    `;
+
     return;
   }
 
-  $("workList").innerHTML=data?.length
-    ?data.map(a=>`
-      <div class="card">
-        <h3>${esc(a.jobs?.title||"Active Work")}</h3>
+  if(!data?.length){
 
-        <span class="badge">
-          ${esc(a.status||"hired")}
-        </span>
+    workList.innerHTML=`
+      <div class="card">
+        <p>No active work.</p>
+      </div>
+    `;
+
+    return;
+  }
+
+  workList.innerHTML=data.map(a=>{
+
+    const agreedAmount=
+      Number(
+        a.proposed_price ??
+        a.agreed_price ??
+        a.jobs?.budget ??
+        0
+      );
+
+    return `
+      <div class="card">
+
+        <h3>${esc(a.jobs?.title || "Active Work")}</h3>
+
+        <p>
+          <b>Status:</b>
+          ${esc(a.status || "hired")}
+        </p>
 
         <p>
           <b>Budget:</b>
-          ₦${Number(a.jobs?.budget||0).toLocaleString()}
+          ₦${agreedAmount.toLocaleString()}
         </p>
 
-        <p>${esc(a.jobs?.description||"")}</p>
+        <p>
+          ${esc(a.jobs?.description || "")}
+        </p>
 
-        <label>Work submission</label>
-        <textarea id="sub_${a.id}"
-          placeholder="Describe or submit your completed work"></textarea>
+        <hr>
 
-        <label>Attach file (optional)</label>
-        <input id="file_${a.id}" type="file">
+        <h4>Work submission</h4>
 
-        <div class="actions">
-          <button class="btn"
-            onclick="submitWork('${a.id}')">
-            Submit Work
-          </button>
+        <textarea
+          id="work_${a.id}"
+          placeholder="Describe or submit your completed work"
+          rows="5"
+        ></textarea>
 
-          <button class="btn ghost"
-            onclick="requestRevision('${a.id}')">
-            Request Revision
-          </button>
+        <br><br>
 
-          <button class="btn danger"
-            onclick="openDispute('${a.id}')">
-            Dispute
-          </button>
-        </div>
+        <label>
+          Attach file (optional)
+        </label>
+
+        <input
+          type="file"
+          id="file_${a.id}"
+        >
+
+        <br><br>
+
+        <button
+          class="btn success"
+          onclick="submitWork('${a.id}')"
+        >
+          Submit Work
+        </button>
+
+        <button
+          class="btn"
+          onclick="requestRevision('${a.id}')"
+        >
+          Request Revision
+        </button>
+
+        <button
+          class="btn"
+          onclick="disputeWork('${a.id}')"
+        >
+          Dispute
+        </button>
+
       </div>
-    `).join("")
-    :"<div class='empty'>No active work found.</div>";
+    `;
+
+  }).join("");
+
 }
   async function submitWork(id){
   const sub=$("sub_"+id).value.trim();
