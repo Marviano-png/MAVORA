@@ -283,39 +283,96 @@ async function loadMyJobs(){
     : "<div class='empty'>You have not posted any jobs yet.</div>";
 }
 async function payPendingJob(jobId){
-
-  if(!currentUser)
-    return show("auth");
+  if(!currentUser)return show("auth");
 
   const {data:job,error:jobError}=await sb
     .from("jobs")
-    .select("id,hired_worker_id")
+    .select("id,hired_worker_id,title,budget")
     .eq("id",jobId)
-    .single();
+    .eq("client_id",currentUser.id)
+    .maybeSingle();
 
-  if(jobError)
-    return toast(jobError.message,true);
+  if(jobError||!job){
+    return toast(jobError?.message||"Job not found.",true);
+  }
 
-  if(!job?.hired_worker_id)
+  if(!job.hired_worker_id){
     return toast("No worker has been selected for this job.",true);
+  }
 
-  const {data:apps,error:appError}=await sb
+  const {data:application,error:applicationError}=await sb
     .from("applications")
-    .select("id,worker_id,status")
-    .eq("job_id",jobId)
+    .select("id")
+    .eq("job_id",job.id)
     .eq("worker_id",job.hired_worker_id)
-    .in("status",["awaiting_payment","hired"])
-    .limit(1);
+    .in("status",["hired","awaiting_payment"])
+    .maybeSingle();
 
-  if(appError)
-    return toast(appError.message,true);
+  if(applicationError||!application){
+    return toast(
+      applicationError?.message||"Payment application not found.",
+      true
+    );
+  }
 
-  const application=apps?.[0];
+  const {data,resultError}=await sb.rpc("pay_job_from_wallet",{
+    p_application_id:application.id
+  });
 
-  if(!application)
-    return toast("Payment application could not be found.",true);
+  if(resultError){
+    return toast(resultError.message,true);
+  }
 
-  startJobPayment(application.id);
+  if(!data?.success){
+
+    if(data?.reason==="insufficient_balance"){
+      const shortfall=Number(data.shortfall||0);
+
+      $("modalTitle").textContent="Insufficient Wallet Balance";
+
+      $("modalBody").innerHTML=`
+        <div class="notice error">
+          <strong>Payment cannot be completed yet.</strong>
+          <p>
+            This job requires the full agreed amount of
+            <strong>₦${Number(data.required_amount||0).toLocaleString()}</strong>.
+          </p>
+          <p>
+            Available wallet balance:
+            <strong>₦${Number(data.available_balance||0).toLocaleString()}</strong>
+          </p>
+          <p>
+            You still need:
+            <strong>₦${shortfall.toLocaleString()}</strong>
+          </p>
+        </div>
+
+        <div class="actions">
+          <button class="btn" onclick="closeModal();openDeposit()">
+            Deposit ₦${shortfall.toLocaleString()}
+          </button>
+
+          <button class="btn ghost" onclick="closeModal()">
+            Pay Later
+          </button>
+        </div>
+      `;
+
+      return openModal();
+    }
+
+    return toast(data?.message||"Payment could not be completed.",true);
+  }
+
+  closeModal();
+
+  toast(
+    `₦${Number(data.amount||0).toLocaleString()} secured for this job.`
+  );
+
+  loadMyJobs();
+  loadWallet();
+  loadTransactions();
 }
 async function closeJob(id){if(!confirm("Close this job?"))return;const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"closed"});if(error)return toast(error.message,true);loadMyJobs()}
 async function reopenJob(id){const {error}=await sb.rpc("change_job_status",{p_job_id:id,p_status:"open"});if(error)return toast(error.message,true);loadMyJobs()}
