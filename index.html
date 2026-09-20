@@ -1321,46 +1321,29 @@ function openDeposit(){
 }
 
 async function startDeposit(){
-  if(!currentUser)
-    return show("auth");
-
   const amount=Number($("depositAmount").value);
 
-  if(!Number.isFinite(amount)||amount<100)
-    return toast("Enter a valid amount.",true);
+  if(!Number.isFinite(amount)||amount<100){
+    return toast("Enter a valid amount of at least ₦100.",true);
+  }
 
-  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  toast("Starting secure payment...");
 
-  if(sessionError||!sessionData?.session)
-    return toast("Your session has expired. Please log in again.",true);
-
-  const {data,error}=await sb.functions.invoke(
-    "mavora-paystack",
-    {
-      body:{
-        type:"wallet_deposit",
-        amount:amount
-      }
+  const {data,error}=await sb.functions.invoke("mavora-paystack",{
+    body:{
+      action:"wallet_deposit",
+      amount:amount
     }
-  );
+  });
 
   if(error){
-    console.error("Wallet payment error:",error);
-    return toast(
-      error.message||"Could not start wallet payment.",
-      true
-    );
+    console.error(error);
+    return toast(error.message||"Could not start deposit.",true);
   }
 
-  if(!data?.authorization_url){
-    console.error("Unexpected wallet payment response:",data);
-    return toast(
-      data?.message||"Payment provider did not return a checkout link.",
-      true
-    );
+  if(!data?.success||!data?.authorization_url){
+    return toast(data?.error||"Could not start payment.",true);
   }
-
-  toast("Opening secure payment...");
 
   window.location.href=data.authorization_url;
 }
