@@ -347,6 +347,33 @@ async function openJob(id){
 
   openModal();
 }
+function openApply(id){
+  if(!currentUser){
+    return show("auth");
+  }
+
+  $("modalTitle").textContent="Apply for this job";
+
+  $("modalBody").innerHTML=`
+    <label>Proposed price (₦)</label>
+    <input id="applyPrice" type="number" min="0" placeholder="How much do you want to charge?">
+
+    <label>Delivery time</label>
+    <input id="applyTime" placeholder="e.g. 3 days">
+
+    <label>Proposal</label>
+    <textarea id="applyProposal" placeholder="Explain how you will complete the work"></textarea>
+
+    <label>Questions (optional)</label>
+    <textarea id="applyQuestions" placeholder="Anything you need clarified"></textarea>
+
+    <button class="btn" onclick="submitApplication('${id}')">
+      Submit Application
+    </button>
+  `;
+
+  openModal();
+}
 async function submitApplication(jobId){
  const price=Number($("applyPrice").value),proposal=$("applyProposal").value.trim(),time=$("applyTime").value.trim(),questions=$("applyQuestions").value.trim();
  if(!Number.isFinite(price)||price<0||!proposal)return toast("Enter a valid price and proposal.",true);
