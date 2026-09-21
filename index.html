@@ -982,11 +982,25 @@ async function saveProfile(){
     city:$("pCity").value,
     area:$("pArea").value,
     about:$("pAbout").value.trim(),
+
+    gender:$("pGender").value||null,
+    avatar_url:$("pAvatarUrl").value.trim()||null,
+
     availability:$("pAvailability").value,
     service_radius_km:Number($("pRadius").value||0)||null,
     nearby_enabled:$("nearbyOpt").checked,
     updated_at:new Date().toISOString()
   };
+
+  const {error}=await sb.rpc("save_my_profile",{
+    p_profile:payload
+  });
+
+  if(error)return toast(error.message,true);
+
+  toast("Profile saved.");
+  loadProfile();
+}
 
   const {error}=await sb.rpc("save_my_profile",{
     p_profile:payload
