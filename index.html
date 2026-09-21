@@ -1487,7 +1487,7 @@ async function loadConversations(){
             ?m.recipient_id
             :m.sender_id;
 
-        const person=profiles[otherId]||{};
+        const person=profiles[m.sender_id]||{};
 
         const name=
           person.full_name ||
