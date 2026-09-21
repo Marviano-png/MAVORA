@@ -1459,6 +1459,9 @@ async function loadConversations(){
 
   const messages=data||[];
 
+  console.log("MESSAGES:", messages);
+console.log("CURRENT USER:", currentUser.id);
+
   const ids=[
     ...new Set(
       messages.map(m=>
