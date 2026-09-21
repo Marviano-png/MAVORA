@@ -248,12 +248,12 @@ async function openJob(id){
   let poster=null;
 
   if(j.client_id){
-    const {data:p}=await sb.from("profiles")
-      .select("id,full_name,username,professional_title,avatar_url,gender,rating,rating_count")
+    const {data:p,error:profileError}=await sb.from("profiles")
+      .select("id,full_name,username,professional_title,avatar_url,gender,rating")
       .eq("id",j.client_id)
       .single();
 
-    poster=p;
+    if(!profileError) poster=p;
   }
 
   const posterName=
@@ -270,37 +270,39 @@ async function openJob(id){
   $("modalBody").innerHTML=`
     <div class="card" style="margin-bottom:15px;">
       <div style="display:flex;align-items:center;gap:12px;">
+
         <img src="${esc(posterPhoto)}"
              style="width:60px;height:60px;border-radius:50%;object-fit:cover;"
              onerror="this.src='https://via.placeholder.com/70?text=M'">
 
         <div>
           <b>${esc(posterName)}</b>
+
           <div class="muted">
             ${esc(poster?.professional_title||"MAVORA user")}
           </div>
 
           ${
             poster?.rating
-            ? `<div>⭐ ${Number(poster.rating).toFixed(1)}
-               (${Number(poster.rating_count||0)} reviews)</div>`
+            ? `<div>⭐ ${Number(poster.rating).toFixed(1)}</div>`
             : `<div class="muted">No ratings yet</div>`
           }
         </div>
       </div>
 
-      <div class="actions" style="margin-top:10px;">
-        ${
-          poster?.id
-          ? `<button class="btn ghost" onclick="viewTalent('${poster.id}')">
+      ${
+        poster?.id
+        ? `<div class="actions" style="margin-top:10px;">
+             <button class="btn ghost" onclick="viewTalent('${poster.id}')">
                View Profile
              </button>
+
              <button class="btn ghost" onclick="startMessage('${poster.id}')">
                Message
-             </button>`
-          : ""
-        }
-      </div>
+             </button>
+           </div>`
+        : ""
+      }
     </div>
 
     <p>${esc(j.description||"")}</p>
