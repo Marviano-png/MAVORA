@@ -650,8 +650,26 @@ async function loadApplications(){
 
   const {data,error}=await sb
     .from("applications")
-    .select("*")
-    .eq("worker_id",currentUser.id)
+    .select(`
+      *,
+      jobs(
+        id,
+        title,
+        client_id,
+        budget,
+        category,
+        job_mode
+      ),
+      profiles!applications_worker_id_fkey(
+        id,
+        full_name,
+        username,
+        professional_title,
+        avatar_url,
+        rating
+      )
+    `)
+    .eq("jobs.client_id",currentUser.id)
     .order("created_at",{ascending:false});
 
   if(error){
@@ -661,35 +679,59 @@ async function loadApplications(){
   }
 
   $("applicationList").innerHTML=data?.length
-    ?data.map(a=>`
-      <div class="card">
-        <h3>Job Application</h3>
+    ? data.map(a=>{
+        const worker=a.profiles||{};
+        const job=a.jobs||{};
 
-        <span class="badge">
-          ${esc(a.status||"pending")}
-        </span>
+        return `
+          <div class="card">
 
-        <p>
-          <b>Proposed price:</b>
-          ₦${Number(a.proposed_price||0).toLocaleString()}
-        </p>
+            <h3>${esc(job.title||"Job Application")}</h3>
 
-        <p>
-          <b>Delivery:</b>
-          ${esc(a.delivery_time||"Not specified")}
-        </p>
+            <p>
+              <b>Worker:</b>
+              ${esc(worker.full_name||worker.username||"MAVORA user")}
+            </p>
 
-        <p>${esc(a.proposal||"")}</p>
+            <p>
+              <b>Professional title:</b>
+              ${esc(worker.professional_title||"Not specified")}
+            </p>
 
-        ${a.status==="hired"||a.status==="accepted"
-          ?`<div class="notice successbox">
-              You have been selected for this job.
-            </div>`
-          :""
-        }
-      </div>
-    `).join("")
-    :"<div class='empty'>You have not submitted any applications yet.</div>";
+            <p>
+              <b>Proposed price:</b>
+              ₦${Number(a.proposed_price||0).toLocaleString()}
+            </p>
+
+            <p>
+              <b>Delivery:</b>
+              ${esc(a.delivery_time||"Not specified")}
+            </p>
+
+            <p>
+              ${esc(a.proposal||"")}
+            </p>
+
+            <span class="badge">
+              ${esc(a.status||"pending")}
+            </span>
+
+            <div class="actions">
+              <button class="btn"
+                onclick="startMessage('${esc(a.worker_id)}')">
+                Message
+              </button>
+
+              <button class="btn"
+                onclick="chooseWorker('${esc(a.job_id)}','${esc(a.id)}')">
+                Choose Worker
+              </button>
+            </div>
+
+          </div>
+        `;
+      }).join("")
+    : "<div class='empty'>No applications received yet.</div>";
 }
 async function loadWork(){
   if(!currentUser)return;
