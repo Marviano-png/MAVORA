@@ -1412,6 +1412,48 @@ async function saveSearch(){
 
 let activeMessageRecipient="";
 
+async function loadMessagePerson(userId){
+  const box=$("messagePerson");
+
+  if(!box || !userId)return;
+
+  const {data:p,error}=await sb
+    .from("profiles")
+    .select("id,full_name,username,avatar_url,professional_title")
+    .eq("id",userId)
+    .single();
+
+  if(error || !p){
+    box.innerHTML="";
+    return;
+  }
+
+  const name=
+    p.full_name ||
+    p.username ||
+    "MAVORA user";
+
+  const photo=
+    p.avatar_url ||
+    "https://via.placeholder.com/50?text=M";
+
+  box.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px;margin:10px 0 15px;">
+      <img
+        src="${esc(photo)}"
+        style="width:45px;height:45px;border-radius:50%;object-fit:cover;"
+        onerror="this.src='https://via.placeholder.com/50?text=M'"
+      >
+
+      <div>
+        <b>${esc(name)}</b>
+        <div class="muted">
+          ${esc(p.professional_title||"MAVORA user")}
+        </div>
+      </div>
+    </div>
+  `;
+}
 function startMessage(userId){
   if(!currentUser){
     show("auth");
