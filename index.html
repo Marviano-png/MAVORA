@@ -1418,7 +1418,8 @@ function startMessage(userId){
     return toast("You cannot message yourself.",true);
   }
 
-  const recipient=$(\"recipient\");
+  const recipient=$("recipient");
+
   if(recipient){
     recipient.innerHTML=
       `<option value="${esc(userId)}">Selected user</option>`;
@@ -1430,7 +1431,7 @@ function startMessage(userId){
   loadConversations();
 
   setTimeout(()=>{
-    $(\"messageText\")?.focus();
+    $("messageText")?.focus();
   },100);
 }
 async function loadConversations(){
