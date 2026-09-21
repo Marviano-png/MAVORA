@@ -1459,10 +1459,73 @@ async function loadConversations(){
 
   const messages=data||[];
 
-  console.log("MESSAGES:", messages);
-console.log("CURRENT USER:", currentUser.id);
+  const userIds=[
+    ...new Set(
+      messages.flatMap(m=>[
+        m.sender_id,
+        m.recipient_id
+      ])
+    )
+  ];
 
-  const ids=[
+  let profiles={};
+
+  if(userIds.length){
+    const {data:people,error:profileError}=await sb
+      .from("profiles")
+      .select("id,full_name,username,avatar_url")
+      .in("id",userIds);
+
+    if(profileError){
+      console.error("Profile loading:",profileError);
+    }
+
+    (people||[]).forEach(p=>{
+      profiles[p.id]=p;
+    });
+  }
+
+  $("conversationList").innerHTML=messages.length
+    ?messages.map(m=>{
+
+        const sender=profiles[m.sender_id]||{};
+
+        const name=
+          sender.full_name ||
+          sender.username ||
+          "MAVORA user";
+
+        const photo=
+          sender.avatar_url ||
+          "https://via.placeholder.com/50?text=M";
+
+        return `
+          <div class="message ${m.sender_id===currentUser.id?"mine":""}">
+            <div style="display:flex;align-items:center;gap:10px;">
+
+              <img
+                src="${esc(photo)}"
+                style="width:42px;height:42px;border-radius:50%;object-fit:cover;"
+                onerror="this.src='https://via.placeholder.com/50?text=M'"
+              >
+
+              <div>
+                <b>${esc(name)}</b>
+
+                <p>${esc(m.message)}</p>
+
+                <small>
+                  ${new Date(m.created_at).toLocaleString()}
+                </small>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join("")
+    :"<div class='empty'>No messages yet.</div>";
+
+  const contactIds=[
     ...new Set(
       messages.map(m=>
         m.sender_id===currentUser.id
@@ -1472,67 +1535,11 @@ console.log("CURRENT USER:", currentUser.id);
     )
   ];
 
-  let profiles={};
-
-if(ids.length){
-  const {data:people}=await sb.from("profiles")
-    .select("id,full_name,username,avatar_url")
-    .in("id",ids);
-
-  (people||[]).forEach(p=>{
-    profiles[p.id]=p;
-  });
-}
-
-const {data:myProfile}=await sb.from("profiles")
-  .select("id,full_name,username,avatar_url")
-  .eq("id",currentUser.id)
-  .single();
-
-if(myProfile){
-  profiles[myProfile.id]=myProfile;
-}
-  $("conversationList").innerHTML=messages.length
-    ?messages.map(m=>{
-        const otherId=
-          m.sender_id===currentUser.id
-            ?m.recipient_id
-            :m.sender_id;
-
-        const person=profiles[m.sender_id]||{};
-
-        const name=
-          person.full_name ||
-          person.username ||
-          "MAVORA user";
-
-        const photo=
-          person.avatar_url ||
-          "https://via.placeholder.com/50?text=M";
-
-        return `
-          <div class="message ${m.sender_id===currentUser.id?"mine":""}">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <img
-                src="${esc(photo)}"
-                style="width:42px;height:42px;border-radius:50%;object-fit:cover;"
-                onerror="this.src='https://via.placeholder.com/50?text=M'"
-              >
-
-              <div>
-                <b>${esc(name)}</b>
-                <p>${esc(m.message)}</p>
-                <small>${new Date(m.created_at).toLocaleString()}</small>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join("")
-    :"<div class='empty'>No messages yet.</div>";
-
   $("recipient").innerHTML=
-    ids.map(id=>{
+    contactIds.map(id=>{
+
       const person=profiles[id]||{};
+
       const name=
         person.full_name ||
         person.username ||
