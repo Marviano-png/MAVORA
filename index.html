@@ -1410,6 +1410,8 @@ async function saveSearch(){
   toast("Search saved.");
 }
 
+let activeMessageRecipient="";
+
 function startMessage(userId){
   if(!currentUser){
     show("auth");
@@ -1419,6 +1421,10 @@ function startMessage(userId){
   if(!userId || userId===currentUser.id){
     return toast("You cannot message yourself.",true);
   }
+
+  activeMessageRecipient=userId;
+
+  show("messages");
 
   const recipient=$("recipient");
   const messageBox=$("messageText");
@@ -1433,8 +1439,6 @@ function startMessage(userId){
     messageBox.value="";
     messageBox.placeholder="Write a message to this person...";
   }
-
-  show("messages");
 
   setTimeout(()=>{
     $("messageText")?.focus();
