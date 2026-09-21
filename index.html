@@ -368,13 +368,13 @@ async function loadMyJobs(){
     .order("created_at",{ascending:false});
 
   if(error){
-    return $("myJobsList").innerHTML=
+    return $("myJobList").innerHTML=
       `<div class="notice error">${esc(error.message)}</div>`;
   }
 
   const jobs=data||[];
 
-  $("myJobsList").innerHTML=jobs.length
+  $("myJobList").innerHTML=jobs.length
     ? jobs.map(j=>`
       <div class="card">
         <h3>${esc(j.title)}</h3>
