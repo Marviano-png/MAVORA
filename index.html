@@ -1421,16 +1421,20 @@ function startMessage(userId){
   }
 
   const recipient=$("recipient");
+  const messageBox=$("messageText");
 
   if(recipient){
-    recipient.innerHTML=
-      `<option value="${esc(userId)}">Selected user</option>`;
+    recipient.innerHTML=`<option value="${esc(userId)}">Direct message</option>`;
     recipient.value=userId;
+    recipient.style.display="none";
+  }
+
+  if(messageBox){
+    messageBox.value="";
+    messageBox.placeholder="Write a message to this person...";
   }
 
   show("messages");
-
-  loadConversations();
 
   setTimeout(()=>{
     $("messageText")?.focus();
