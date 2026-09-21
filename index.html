@@ -1443,6 +1443,8 @@ function startMessage(userId){
   },100);
 }
 async function loadConversations(){
+  if(!currentUser)return;
+
   const {data,error}=await sb.from("messages")
     .select("*")
     .or(
@@ -1450,36 +1452,89 @@ async function loadConversations(){
     )
     .order("created_at",{ascending:true});
 
-  if(error)
+  if(error){
     return $("conversationList").innerHTML=
-      `<div class='notice error'>${esc(error.message)}</div>`;
+      `<div class="notice error">${esc(error.message)}</div>`;
+  }
 
-  $("conversationList").innerHTML=data?.length
-    ?data.map(m=>`
-      <div class="message ${m.sender_id===currentUser.id?"mine":""}">
-        <p>${esc(m.message)}</p>
-        <small>${new Date(m.created_at).toLocaleString()}</small>
-      </div>
-    `).join("")
-    :"<div class='empty'>No messages yet.</div>";
+  const messages=data||[];
 
   const ids=[
     ...new Set(
-      (data||[]).map(
-        m=>m.sender_id===currentUser.id
+      messages.map(m=>
+        m.sender_id===currentUser.id
           ?m.recipient_id
           :m.sender_id
       )
     )
   ];
 
+  let profiles={};
+
+  if(ids.length){
+    const {data:people}=await sb.from("profiles")
+      .select("id,full_name,username,avatar_url")
+      .in("id",ids);
+
+    (people||[]).forEach(p=>{
+      profiles[p.id]=p;
+    });
+  }
+
+  $("conversationList").innerHTML=messages.length
+    ?messages.map(m=>{
+        const otherId=
+          m.sender_id===currentUser.id
+            ?m.recipient_id
+            :m.sender_id;
+
+        const person=profiles[otherId]||{};
+
+        const name=
+          person.full_name ||
+          person.username ||
+          "MAVORA user";
+
+        const photo=
+          person.avatar_url ||
+          "https://via.placeholder.com/50?text=M";
+
+        return `
+          <div class="message ${m.sender_id===currentUser.id?"mine":""}">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <img
+                src="${esc(photo)}"
+                style="width:42px;height:42px;border-radius:50%;object-fit:cover;"
+                onerror="this.src='https://via.placeholder.com/50?text=M'"
+              >
+
+              <div>
+                <b>${esc(name)}</b>
+                <p>${esc(m.message)}</p>
+                <small>${new Date(m.created_at).toLocaleString()}</small>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("")
+    :"<div class='empty'>No messages yet.</div>";
+
   $("recipient").innerHTML=
-    ids.map(id=>
-      `<option value="${esc(id)}">${esc(id)}</option>`
-    ).join("")
+    ids.map(id=>{
+      const person=profiles[id]||{};
+      const name=
+        person.full_name ||
+        person.username ||
+        "MAVORA user";
+
+      return `
+        <option value="${esc(id)}">
+          ${esc(name)}
+        </option>
+      `;
+    }).join("")
     ||'<option value="">No contacts yet</option>';
 }
-
 function loadMessages(){
   if(!currentUser)return;
   loadConversations();
