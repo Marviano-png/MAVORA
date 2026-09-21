@@ -1471,12 +1471,10 @@ async function loadConversations(){
 
   let profiles={};
 
- const profileIds=[...new Set([...ids,currentUser.id])];
-
-if(profileIds.length){
+ if(ids.length){
   const {data:people}=await sb.from("profiles")
     .select("id,full_name,username,avatar_url")
-    .in("id",profileIds);
+    .in("id",ids);
 
   (people||[]).forEach(p=>{
     profiles[p.id]=p;
