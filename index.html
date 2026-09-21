@@ -1427,18 +1427,16 @@ function startMessage(userId){
   show("messages");
 
   const recipient=$("recipient");
-  const messageBox=$("messageText");
 
   if(recipient){
-    recipient.innerHTML=`<option value="${esc(userId)}">Direct message</option>`;
+    recipient.innerHTML=
+      `<option value="${esc(userId)}">Direct message</option>`;
     recipient.value=userId;
     recipient.style.display="none";
   }
 
-  if(messageBox){
-    messageBox.value="";
-    messageBox.placeholder="Write a message to this person...";
-  }
+  $("messageText").value="";
+  $("messageText").placeholder="Write a message to this person...";
 
   setTimeout(()=>{
     $("messageText")?.focus();
@@ -1495,7 +1493,11 @@ async function sendMessage(){
   const to=activeMessageRecipient || $("recipient").value;
   const text=$("messageText").value.trim();
 
-  if(!to||!text){
+  if(!to){
+    return toast("No message recipient selected.",true);
+  }
+
+  if(!text){
     return toast("Write a message first.",true);
   }
 
