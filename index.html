@@ -1488,11 +1488,20 @@ function loadMessages(){
 }
 
 async function sendMessage(){
-  const to=$("recipient").value;
+  if(!currentUser){
+    return show("auth");
+  }
+
+  const to=activeMessageRecipient || $("recipient").value;
   const text=$("messageText").value.trim();
 
-  if(!to||!text)
-    return toast("Choose a contact and write a message.",true);
+  if(!to||!text){
+    return toast("Write a message first.",true);
+  }
+
+  if(to===currentUser.id){
+    return toast("You cannot message yourself.",true);
+  }
 
   const {error}=await sb.from("messages").insert({
     sender_id:currentUser.id,
@@ -1500,13 +1509,15 @@ async function sendMessage(){
     message:text
   });
 
-  if(error)return toast(error.message,true);
+  if(error){
+    return toast(error.message,true);
+  }
 
   $("messageText").value="";
 
-  loadConversations();
-
   toast("Message sent.");
+
+  loadConversations();
 }
 
 async function loadNotifications(){
