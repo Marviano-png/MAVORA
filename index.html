@@ -1492,6 +1492,17 @@ async function sendMessage(){
 
   const to=activeMessageRecipient || $("recipient").value;
   const text=$("messageText").value.trim();
+  const blockedPatterns = [
+  /\b(?:\+234|234|0)(?:70|80|81|90|91)\d{8}\b/i,
+  /\b\d{10}\b/,
+  /\b(?:account\s*number|acct\s*no|bank\s*account|account\s*details)\b/i,
+  /\b(?:send\s*money|transfer\s*money|pay\s*me|send\s*to|make\s*payment)\b/i,
+  /\b(?:paystack\.com|flutterwave\.com|moniepoint|opay|palmpay)\b/i
+];
+
+if(blockedPatterns.some(pattern=>pattern.test(text))){
+  return toast("Payment or personal contact details cannot be shared in MAVORA messages.",true);
+}
 
   if(!to){
     return toast("No message recipient selected.",true);
