@@ -1471,16 +1471,17 @@ async function loadConversations(){
 
   let profiles={};
 
-  if(ids.length){
-    const {data:people}=await sb.from("profiles")
-      .select("id,full_name,username,avatar_url")
-      .in("id",ids);
+ const profileIds=[...new Set([...ids,currentUser.id])];
 
-    (people||[]).forEach(p=>{
-      profiles[p.id]=p;
-    });
-  }
+if(profileIds.length){
+  const {data:people}=await sb.from("profiles")
+    .select("id,full_name,username,avatar_url")
+    .in("id",profileIds);
 
+  (people||[]).forEach(p=>{
+    profiles[p.id]=p;
+  });
+}
   $("conversationList").innerHTML=messages.length
     ?messages.map(m=>{
         const otherId=
