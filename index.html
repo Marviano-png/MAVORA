@@ -941,6 +941,9 @@ async function loadProfile(){
   populateLocation("pCity",data.state,data.city);
   populateLocation("pArea",data.state,data.area);
 
+  $("pGender").value=data.gender||"";
+  $("pAvatarUrl").value=data.avatar_url||"";
+
   $("pAvailability").value=data.availability||"available";
   $("pRadius").value=data.service_radius_km||"";
   $("nearbyOpt").checked=!!data.nearby_enabled;
@@ -959,7 +962,11 @@ async function loadProfile(){
     </span>
 
     <span class="badge">
-      Rating: ${Number(data.rating||0).toFixed(1)}
+      Gender: ${data.gender||"Not specified"}
+    </span>
+
+    <span class="badge">
+      Rating: ⭐ ${Number(data.rating||0).toFixed(1)}
     </span>
   `;
 }
