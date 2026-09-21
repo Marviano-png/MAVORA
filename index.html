@@ -57,9 +57,86 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 <section id="applications" class="page"><div class="card"><h2>My Applications</h2><div id="applicationList"></div></div></section>
 <section id="work" class="page"><div class="card"><h2>My Work</h2><div id="workList"></div></div></section>
 <section id="messages" class="page"><div class="card"><h2>Messages</h2><div id="conversationList"></div><select id="recipient"></select><textarea id="messageText" placeholder="Write a message"></textarea><button class="btn" onclick="sendMessage()">Send</button></div></section>
-<section id="profile" class="page"><div class="card"><h2>Profile</h2><div class="row"><input id="pName" placeholder="Full name"><input id="pUsername" placeholder="Username"></div><input id="pTitle" placeholder="Professional title"><input id="pSkills" placeholder="Skills, separated by commas"><textarea id="pAbout" placeholder="About you"></textarea><div class="row"><select id="pState"><option value="">State</option><option>Lagos</option><option>Ogun</option><option>Ondo</option><option>Oyo</option><option>Osun</option><option>Other</option></select><select id="pLga"><option value="">LGA</option></select></div><div class="row"><select id="pCity"><option value="">City/Town</option></select><select id="pArea"><option value="">Area/Neighborhood</option></select></div><div class="row"><select id="pAvailability"><option value="available">Available</option><option value="busy">Busy</option><option value="unavailable">Unavailable</option></select><input id="pRadius" type="number" min="1" max="100" placeholder="Service radius (km)"></div><label class="check"><input id="nearbyOpt" type="checkbox"> Allow me to appear in nearby searches</label><button class="btn" onclick="saveProfile()">Save Profile</button></div><div class="card"><h3>Profile trust</h3><div id="profileTrust"></div></div></section>
-<section id="wallet" class="page"><div class="card"><h2>Wallet</h2><div class="grid" id="walletCards"></div><div class="notice"><strong>Payment security</strong>MAVORA should never store raw card numbers or CVV in this HTML. Deposits, provider webhooks and withdrawals must be handled through a secure payment backend/provider.</div><div class="actions"><button class="btn" onclick="openDeposit()">Deposit</button><button class="btn secondary" onclick="openWithdraw()">Withdraw to verified bank</button><button class="btn ghost" <button class="btn ghost" onclick="loadTransactions();loadWithdrawals()">Refresh history</button></div></div><div class="card"><h3>Transactions</h3><div id="transactionList"></div></div>
-<div class="card"><h3>Withdrawal History</h3><div id="withdrawalList"></div></div>
+<section id="profile" class="page">
+  <div class="card">
+    <h2>Profile</h2>
+
+    <div class="row">
+      <input id="pName" placeholder="Full name">
+
+      <select id="pGender">
+        <option value="">Gender</option>
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+        <option value="Custom">Custom</option>
+      </select>
+    </div>
+
+    <input id="pAvatarUrl" type="url" placeholder="Profile photo URL">
+
+    <input id="pUsername" placeholder="Username">
+
+    <input id="pTitle" placeholder="Professional title">
+
+    <input id="pSkills" placeholder="Skills, separated by commas">
+
+    <textarea id="pAbout" placeholder="About you"></textarea>
+
+    <div class="row">
+      <select id="pState">
+        <option value="">State</option>
+        <option>Lagos</option>
+        <option>Ogun</option>
+        <option>Ondo</option>
+        <option>Oyo</option>
+        <option>Osun</option>
+        <option>Other</option>
+      </select>
+
+      <select id="pLga">
+        <option value="">LGA</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <select id="pCity">
+        <option value="">City/Town</option>
+      </select>
+
+      <select id="pArea">
+        <option value="">Area/Neighborhood</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <select id="pAvailability">
+        <option value="available">Available</option>
+        <option value="busy">Busy</option>
+        <option value="unavailable">Unavailable</option>
+      </select>
+
+      <input
+        id="pRadius"
+        type="number"
+        min="1"
+        max="100"
+        placeholder="Service radius (km)"
+      >
+    </div>
+
+    <label class="check">
+      <input id="nearbyOpt" type="checkbox">
+      Allow me to appear in nearby searches
+    </label>
+
+    <button class="btn" onclick="saveProfile()">Save Profile</button>
+  </div>
+
+  <div class="card">
+    <h3>Profile trust</h3>
+    <div id="profileTrust"></div>
+  </div>
+</section>
 </section>
 <section id="notifications" class="page"><div class="card"><div class="top-actions"><h2>Notifications</h2><button class="btn ghost" onclick="markNotificationsRead()">Mark all read</button></div><div id="notificationList"></div></div></section>
 <section id="settings" class="page"><div class="card"><h2>Settings & Security</h2><div class="actions"><button class="btn ghost" onclick="resetPassword()">Change/reset password</button><button class="btn ghost" onclick="showSessions()">Security sessions</button><button class="btn danger" onclick="logoutEverywhere()">Log out everywhere</button></div><h3>Notification preferences</h3><label class="check"><input id="emailNotify" type="checkbox" checked> Email notifications</label><label class="check"><input id="messageNotify" type="checkbox" checked> Message notifications</label><h3>Privacy</h3><p class="muted">Public profiles should show only the location level you choose. Exact addresses should stay private.</p></div></section>
