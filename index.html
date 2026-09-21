@@ -240,8 +240,111 @@ async function loadJobs(){
  const {data,error}=await query;if(error)return $("jobList").innerHTML=`<div class="notice error">${esc(error.message)}</div>`;
  $("jobList").innerHTML=data?.length?data.map(j=>`<div class="card job-card"><h3>${esc(j.title)}</h3><span class="badge">${esc(j.job_mode||"Remote")}</span><span class="badge">${esc(j.category||"General")}</span><span class="badge yellow">${esc(j.experience_level||"Any level")}</span><p>${esc(j.description)}</p><p><b>Budget:</b> ₦${Number(j.budget||0).toLocaleString()}</p><p class="muted">📍 ${esc([j.state,j.lga,j.city,j.area].filter(Boolean).join(" • ")||"Remote")}</p><div class="actions"><button class="btn" onclick="openJob('${j.id}')">View / Apply</button><button class="btn ghost" onclick="saveJob('${j.id}')">Save</button><button class="btn ghost" onclick="reportJob('${j.id}')">Report</button></div></div>`).join(""):"<div class='empty'>No jobs found.</div>"
 }
-async function openJob(id){const {data:j,error}=await sb.from("jobs").select("*").eq("id",id).single();if(error)return toast(error.message,true);$("modalTitle").textContent=j.title;$("modalBody").innerHTML=`<p>${esc(j.description)}</p><p><b>Budget:</b> ₦${Number(j.budget||0).toLocaleString()}</p><p><b>Mode:</b> ${esc(j.job_mode||"")} · <b>Category:</b> ${esc(j.category||"")}</p><p><b>Location:</b> ${esc([j.state,j.lga,j.city,j.area].filter(Boolean).join(" • ")||"Remote")}</p><p><b>Deadline:</b> ${j.deadline?new Date(j.deadline).toLocaleString():"Not specified"}</p><div class="actions"><button class="btn" onclick="openApply('${j.id}')">Apply</button><button class="btn ghost" onclick="reportJob('${j.id}')">Report job</button></div>`;openModal()}
-function openApply(id){if(!currentUser)return show("auth");$("modalTitle").textContent="Apply for this job";$("modalBody").innerHTML=`<label>Proposed price (₦)</label><input id="applyPrice" type="number" min="0"><label>Delivery time</label><input id="applyTime" placeholder="e.g. 3 days"><label>Proposal</label><textarea id="applyProposal" placeholder="Explain how you will complete the work"></textarea><label>Questions (optional)</label><textarea id="applyQuestions" placeholder="Anything you need clarified"></textarea><button class="btn" onclick="submitApplication('${id}')">Submit Application</button>`;openModal()}
+async function openJob(id){
+  const {data:j,error}=await sb.from("jobs").select("*").eq("id",id).single();
+
+  if(error)return toast(error.message,true);
+
+  let poster=null;
+
+  if(j.client_id){
+    const {data:p}=await sb.from("profiles")
+      .select("id,full_name,username,professional_title,avatar_url,gender,rating,rating_count")
+      .eq("id",j.client_id)
+      .single();
+
+    poster=p;
+  }
+
+  const posterName=
+    poster?.full_name ||
+    poster?.username ||
+    "Job poster";
+
+  const posterPhoto=
+    poster?.avatar_url ||
+    "https://via.placeholder.com/70?text=M";
+
+  $("modalTitle").textContent=j.title;
+
+  $("modalBody").innerHTML=`
+    <div class="card" style="margin-bottom:15px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <img src="${esc(posterPhoto)}"
+             style="width:60px;height:60px;border-radius:50%;object-fit:cover;"
+             onerror="this.src='https://via.placeholder.com/70?text=M'">
+
+        <div>
+          <b>${esc(posterName)}</b>
+          <div class="muted">
+            ${esc(poster?.professional_title||"MAVORA user")}
+          </div>
+
+          ${
+            poster?.rating
+            ? `<div>⭐ ${Number(poster.rating).toFixed(1)}
+               (${Number(poster.rating_count||0)} reviews)</div>`
+            : `<div class="muted">No ratings yet</div>`
+          }
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:10px;">
+        ${
+          poster?.id
+          ? `<button class="btn ghost" onclick="viewTalent('${poster.id}')">
+               View Profile
+             </button>
+             <button class="btn ghost" onclick="startMessage('${poster.id}')">
+               Message
+             </button>`
+          : ""
+        }
+      </div>
+    </div>
+
+    <p>${esc(j.description||"")}</p>
+
+    <p>
+      <b>Budget:</b>
+      ₦${Number(j.budget||0).toLocaleString()}
+    </p>
+
+    <p>
+      <b>Mode:</b> ${esc(j.job_mode||"")}
+      ·
+      <b>Category:</b> ${esc(j.category||"")}
+    </p>
+
+    <p>
+      <b>Location:</b>
+      ${esc(
+        [j.state,j.lga,j.city,j.area]
+          .filter(Boolean)
+          .join(" • ") || "Remote"
+      )}
+    </p>
+
+    <p>
+      <b>Deadline:</b>
+      ${j.deadline
+        ? new Date(j.deadline).toLocaleString()
+        : "Not specified"}
+    </p>
+
+    <div class="actions">
+      <button class="btn" onclick="openApply('${j.id}')">
+        Apply
+      </button>
+
+      <button class="btn ghost" onclick="reportJob('${j.id}')">
+        Report job
+      </button>
+    </div>
+  `;
+
+  openModal();
+}
 async function submitApplication(jobId){
  const price=Number($("applyPrice").value),proposal=$("applyProposal").value.trim(),time=$("applyTime").value.trim(),questions=$("applyQuestions").value.trim();
  if(!Number.isFinite(price)||price<0||!proposal)return toast("Enter a valid price and proposal.",true);
@@ -257,108 +360,55 @@ async function postJob(){
 async function loadMyJobs(){
   if(!currentUser)return;
 
-  const {data,error}=await sb
-    .from("jobs")
+  const {data,error}=await sb.from("jobs")
     .select("*")
     .eq("client_id",currentUser.id)
     .order("created_at",{ascending:false});
 
   if(error){
-    $("myJobs").innerHTML=
+    return $("myJobsList").innerHTML=
       `<div class="notice error">${esc(error.message)}</div>`;
-    return;
   }
 
-  $("myJobs").innerHTML=data?.length
-    ? data.map(j=>`
+  const jobs=data||[];
 
+  $("myJobsList").innerHTML=jobs.length
+    ? jobs.map(j=>`
       <div class="card">
-
-        <h2>${esc(j.title||"Untitled job")}</h2>
-
-        <span class="badge">
-          ${esc(j.status||"open")}
-        </span>
+        <h3>${esc(j.title)}</h3>
 
         <p>
-          Budget:
-          <strong>₦${Number(j.budget||0).toLocaleString()}</strong>
+          <span class="badge">${esc(j.status||"open")}</span>
+          <span class="badge">${esc(j.job_mode||"Remote")}</span>
         </p>
+
+        <p>${esc(j.description||"")}</p>
 
         <p>
-          Type:
-          ${esc(j.category||"Not specified")}
+          <b>Budget:</b>
+          ₦${Number(j.budget||0).toLocaleString()}
         </p>
 
-        <p>
-          Mode:
-          ${esc(j.job_mode||"Not specified")}
+        <p class="muted">
+          📍 ${esc(
+            [j.state,j.lga,j.city,j.area]
+              .filter(Boolean)
+              .join(" • ") || "Remote"
+          )}
         </p>
 
-        ${
-          j.status==="awaiting_payment"
-          ? `
-            <div class="notice">
-              <strong>Worker selected.</strong>
-              <br>
-              Payment is required before the worker can start.
-            </div>
+        <div class="actions">
+          <button class="btn" onclick="openJob('${j.id}')">
+            View Job
+          </button>
 
-            <button
-              class="btn success"
-              onclick="payPendingJob('${j.id}')">
-              Pay Now
-            </button>
-          `
-          : ""
-        }
-
-        ${
-          j.status==="in_progress"
-          ? `
-            <div class="notice">
-              ✓ Payment confirmed.
-              <br>
-              Worker can now start/continue the work.
-            </div>
-          `
-          : ""
-        }
-
-        ${
-          j.status==="open"
-          ? `
-            <div class="actions">
-              <button
-                class="btn"
-                onclick="viewApplicants('${j.id}')">
-                Applicants
-              </button>
-
-              <button
-                class="btn ghost"
-                onclick="editJob('${j.id}')">
-                Edit
-              </button>
-            </div>
-          `
-          : ""
-        }
-
-        ${
-          j.status==="closed"
-          ? `
-            <div class="notice">
-              ✓ This job is completed and closed.
-            </div>
-          `
-          : ""
-        }
-
+          <button class="btn ghost" onclick="viewJobApplications('${j.id}')">
+            Applications
+          </button>
+        </div>
       </div>
-
     `).join("")
-    : "<div class='empty'>You have not posted any jobs yet.</div>";
+    : `<div class="empty">You have not posted any jobs yet.</div>`;
 }
 async function payPendingJob(jobId){
   if(!currentUser)return show("auth");
