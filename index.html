@@ -135,6 +135,19 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
     </label>
 
     <button class="btn" onclick="saveProfile()">Save Profile</button>
+    <div class="card" style="margin-top:14px">
+  <div class="top-actions">
+    <div>
+      <h3>My Portfolio</h3>
+      <p class="muted">Show clients examples of your work.</p>
+    </div>
+    <button class="btn" type="button" onclick="addPortfolioProject()">+ Add Project</button>
+  </div>
+
+  <div id="portfolioList">
+    <p class="muted">No portfolio projects added yet.</p>
+  </div>
+</div>
   </div>
 
   <div class="card">
@@ -1132,7 +1145,8 @@ async function loadProfile(){
     <span class="badge">Completed jobs: ${completed}</span>
   `;
 
-  previewProfilePhoto();
+ previewProfilePhoto();
+  loadPortfolioProjects();
 }
 
 async function saveProfile(){
@@ -1179,6 +1193,85 @@ async function saveProfile(){
 
   toast("Profile saved.");
   loadProfile();
+}
+function addPortfolioProject(){
+  const title=prompt("Portfolio project title:");
+  if(!title)return;
+
+  const description=prompt("Describe your project:");
+  const link=prompt("Project link (optional):");
+
+  const projects=JSON.parse(
+    localStorage.getItem("mavora_portfolio")||"[]"
+  );
+
+  projects.push({
+    title:title.trim(),
+    description:(description||"").trim(),
+    link:(link||"").trim()
+  });
+
+  localStorage.setItem(
+    "mavora_portfolio",
+    JSON.stringify(projects)
+  );
+
+  loadPortfolioProjects();
+  toast("Portfolio project added.");
+}
+
+function loadPortfolioProjects(){
+  const container=$("portfolioList");
+  if(!container)return;
+
+  const projects=JSON.parse(
+    localStorage.getItem("mavora_portfolio")||"[]"
+  );
+
+  if(!projects.length){
+    container.innerHTML=
+      '<p class="muted">No portfolio projects added yet.</p>';
+    return;
+  }
+
+  container.innerHTML=projects.map((project,index)=>`
+    <div class="card" style="margin-top:10px">
+      <h4>${escapeHtml(project.title)}</h4>
+      <p>${escapeHtml(project.description||"")}</p>
+      ${
+        project.link
+        ? `<a href="${escapeHtml(project.link)}"
+              target="_blank"
+              rel="noopener noreferrer">
+              View Project
+           </a>`
+        : ""
+      }
+      <br>
+      <button
+        class="btn danger"
+        type="button"
+        onclick="deletePortfolioProject(${index})">
+        Delete
+      </button>
+    </div>
+  `).join("");
+}
+
+function deletePortfolioProject(index){
+  const projects=JSON.parse(
+    localStorage.getItem("mavora_portfolio")||"[]"
+  );
+
+  projects.splice(index,1);
+
+  localStorage.setItem(
+    "mavora_portfolio",
+    JSON.stringify(projects)
+  );
+
+  loadPortfolioProjects();
+  toast("Portfolio project deleted.");
 }
 
 $("pName")?.addEventListener("input",()=>{
