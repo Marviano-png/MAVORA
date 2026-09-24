@@ -1194,53 +1194,66 @@ async function saveProfile(){
   toast("Profile saved.");
   loadProfile();
 }
-function addPortfolioProject(){
+async function addPortfolioProject(){
   const title=prompt("Portfolio project title:");
   if(!title)return;
 
   const description=prompt("Describe your project:");
   const link=prompt("Project link (optional):");
 
-  const projects=JSON.parse(
-    localStorage.getItem("mavora_portfolio")||"[]"
-  );
+  if(!currentUser){
+    return toast("Please log in first.",true);
+  }
 
-  projects.push({
+  const {error}=await sb.from("portfolios").insert({
+    user_id:currentUser.id,
     title:title.trim(),
     description:(description||"").trim(),
-    link:(link||"").trim()
+    project_url:(link||"").trim()||null
   });
 
-  localStorage.setItem(
-    "mavora_portfolio",
-    JSON.stringify(projects)
-  );
+  if(error){
+    return toast("Could not add portfolio: "+error.message,true);
+  }
 
-  loadPortfolioProjects();
+  await loadPortfolioProjects();
   toast("Portfolio project added.");
 }
-
-function loadPortfolioProjects(){
+async function loadPortfolioProjects(){
   const container=$("portfolioList");
   if(!container)return;
 
-  const projects=JSON.parse(
-    localStorage.getItem("mavora_portfolio")||"[]"
-  );
+  if(!currentUser){
+    container.innerHTML=
+      '<p class="muted">Please log in to view your portfolio.</p>';
+    return;
+  }
 
-  if(!projects.length){
+  const {data,error}=await sb
+    .from("portfolios")
+    .select("*")
+    .eq("user_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    container.innerHTML=
+      '<p class="muted">Could not load portfolio projects.</p>';
+    return toast("Could not load portfolio: "+error.message,true);
+  }
+
+  if(!data||!data.length){
     container.innerHTML=
       '<p class="muted">No portfolio projects added yet.</p>';
     return;
   }
 
-  container.innerHTML=projects.map((project,index)=>`
+  container.innerHTML=data.map(project=>`
     <div class="card" style="margin-top:10px">
-      <h4>${escapeHtml(project.title)}</h4>
+      <h4>${escapeHtml(project.title||"Untitled project")}</h4>
       <p>${escapeHtml(project.description||"")}</p>
       ${
-        project.link
-        ? `<a href="${escapeHtml(project.link)}"
+        project.project_url
+        ? `<a href="${escapeHtml(project.project_url)}"
               target="_blank"
               rel="noopener noreferrer">
               View Project
@@ -1251,26 +1264,29 @@ function loadPortfolioProjects(){
       <button
         class="btn danger"
         type="button"
-        onclick="deletePortfolioProject(${index})">
+        onclick="deletePortfolioProject('${project.id}')">
         Delete
       </button>
     </div>
   `).join("");
 }
 
-function deletePortfolioProject(index){
-  const projects=JSON.parse(
-    localStorage.getItem("mavora_portfolio")||"[]"
-  );
+async function deletePortfolioProject(id){
+  if(!currentUser){
+    return toast("Please log in first.",true);
+  }
 
-  projects.splice(index,1);
+  const {error}=await sb
+    .from("portfolios")
+    .delete()
+    .eq("id",id)
+    .eq("user_id",currentUser.id);
 
-  localStorage.setItem(
-    "mavora_portfolio",
-    JSON.stringify(projects)
-  );
+  if(error){
+    return toast("Could not delete portfolio: "+error.message,true);
+  }
 
-  loadPortfolioProjects();
+  await loadPortfolioProjects();
   toast("Portfolio project deleted.");
 }
 
