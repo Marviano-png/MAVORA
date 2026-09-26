@@ -190,15 +190,20 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
   <p class="muted">Manage your login details and account security.</p>
 
   <h4>📱 Phone Number</h4>
+
+<div id="currentPhoneStatus" class="notice">
+  Checking your phone number...
+</div>
+
 <input id="changePhoneNumber" type="tel" inputmode="tel"
        placeholder="+2348012345678">
 
-<button class="btn" type="button" onclick="changeMavoraPhone()">
-  Add / Change Phone
+<button id="phoneAccountButton" class="btn" type="button"
+        onclick="changeMavoraPhone()">
+  Add Phone Number
 </button>
 
 <div id="changePhoneStatus"></div>
-
   <hr style="margin:18px 0">
 
   <h4>📧 Change Email</h4>
@@ -2967,29 +2972,56 @@ setInterval(()=>{
     $("phoneVerifyStatus").innerHTML=confirmed?'<div class="notice successbox">✓ Your phone is verified.</div>':'<div class="notice">Your phone is not verified yet.</div>';
     if(confirmed&&$("otpBox"))$("otpBox").classList.add('hide');
   };
-  window.changeMavoraPhone=async function(){
+ window.loadAccountPhone=async function(){
+  if(!currentUser)return;
+
+  const phone=currentUser.phone||'';
+  const confirmed=!!currentUser.phone_confirmed_at;
+
+  if(phone){
+    $("currentPhoneStatus").innerHTML=
+      '<div class="notice">📱 Current phone: <strong>'+esc(phone)+'</strong>'+
+      (confirmed
+        ? '<br><span class="muted small">✓ Verified</span>'
+        : '<br><span class="muted small">Not verified</span>')+
+      '</div>';
+
+    $("phoneAccountButton").textContent="Change Phone Number";
+  }else{
+    $("currentPhoneStatus").innerHTML=
+      '<div class="notice">No phone number has been added to this account.</div>';
+
+    $("phoneAccountButton").textContent="Add Phone Number";
+  }
+};
+
+window.changeMavoraPhone=async function(){
   if(!currentUser)return show('auth');
 
   const phone=$("changePhoneNumber")?.value.trim()||'';
-  if(!phone)return toast("Enter your new phone number.",true);
+
+  if(!phone)
+    return toast("Enter your phone number.",true);
 
   const {error}=await sb.auth.updateUser({phone});
 
   if(error){
-    $("changePhoneStatus").innerHTML='<div class="notice errorbox">'+esc(error.message)+'</div>';
+    $("changePhoneStatus").innerHTML=
+      '<div class="notice errorbox">'+esc(error.message)+'</div>';
     return;
   }
 
   localStorage.setItem('mavora_pending_phone',phone);
 
   $("changePhoneStatus").innerHTML=
-    '<div class="notice successbox">✓ Verification code sent. Complete phone verification.</div>';
+    '<div class="notice successbox">✓ Verification code sent. Verify your phone number to complete the process.</div>';
 
   if($("phoneNumber"))$("phoneNumber").value=phone;
-  show('verifyPhone');
-  toast("OTP sent to your new phone number.");
-};
 
+  show('verifyPhone');
+
+  toast("OTP sent to your phone.");
+};
 window.changeMavoraEmail=async function(){
   if(!currentUser)return show('auth');
 
