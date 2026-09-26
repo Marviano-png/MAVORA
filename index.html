@@ -216,6 +216,27 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 
   <hr style="margin:18px 0">
 
+  <div id="passwordReauthBox" class="notice">
+  <strong>🔐 Verify it's you</strong>
+  <p class="muted">A verification code will be sent to your account email before your password can be changed.</p>
+
+  <button class="btn" type="button" onclick="startPasswordReauth()">
+    Send Verification Code
+  </button>
+
+  <div id="passwordReauthCodeBox" class="hide">
+    <input id="passwordReauthCode"
+           inputmode="numeric"
+           maxlength="6"
+           placeholder="Enter 6-digit verification code">
+
+    <button class="btn" type="button" onclick="verifyPasswordReauth()">
+      Verify Code
+    </button>
+  </div>
+
+  <div id="passwordReauthStatus"></div>
+</div>
   <h4>🔑 Change Password</h4>
   <input id="currentPassword" type="password"
        placeholder="Current password" autocomplete="current-password">
@@ -3046,6 +3067,39 @@ window.changeMavoraEmail=async function(){
   toast("Check your new email to confirm the change.");
 };
 
+window.startPasswordReauth=async function(){
+  if(!currentUser)return show('auth');
+
+  $("passwordReauthStatus").innerHTML=
+    '<div class="notice">Sending verification code...</div>';
+
+  const {error}=await sb.auth.reauthenticate();
+
+  if(error){
+    $("passwordReauthStatus").innerHTML=
+      '<div class="notice errorbox">'+esc(error.message)+'</div>';
+    return;
+  }
+
+  $("passwordReauthCodeBox").classList.remove('hide');
+
+  $("passwordReauthStatus").innerHTML=
+    '<div class="notice successbox">✓ Verification code sent to your email.</div>';
+};
+
+window.verifyPasswordReauth=async function(){
+  if(!currentUser)return show('auth');
+
+  const code=$("passwordReauthCode")?.value.trim()||'';
+
+  if(!/^\d{6}$/.test(code))
+    return toast("Enter the 6-digit verification code.",true);
+
+  window.mavoraPasswordNonce=code;
+
+  $("passwordReauthStatus").innerHTML=
+    '<div class="notice successbox">✓ Verification code accepted. You can now change your password.</div>';
+};
 window.changeMavoraPassword=async function(){
   if(!currentUser)return show('auth');
 
@@ -3065,10 +3119,14 @@ window.changeMavoraPassword=async function(){
   if(password!==confirm)
     return toast("The passwords do not match.",true);
 
-  const {error}=await sb.auth.updateUser({
-    password,
-    current_password:currentPassword
-  });
+  if(!window.mavoraPasswordNonce)
+  return toast("Verify the code sent to your email first.",true);
+
+const {error}=await sb.auth.updateUser({
+  password,
+  current_password:currentPassword,
+  nonce:window.mavoraPasswordNonce
+});
 
   if(error){
     $("changePasswordStatus").innerHTML=
