@@ -217,6 +217,8 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
   <hr style="margin:18px 0">
 
   <h4>🔑 Change Password</h4>
+  <input id="currentPassword" type="password"
+       placeholder="Current password" autocomplete="current-password">
   <input id="newPassword" type="password"
          placeholder="New password">
   <input id="confirmNewPassword" type="password"
@@ -3047,20 +3049,34 @@ window.changeMavoraEmail=async function(){
 window.changeMavoraPassword=async function(){
   if(!currentUser)return show('auth');
 
+  const currentPassword=$("currentPassword")?.value||'';
   const password=$("newPassword")?.value||'';
   const confirm=$("confirmNewPassword")?.value||'';
 
-  if(!password)return toast("Enter your new password.",true);
-  if(password.length<8)return toast("Password must be at least 8 characters.",true);
-  if(password!==confirm)return toast("The passwords do not match.",true);
+  if(!currentPassword)
+    return toast("Enter your current password.",true);
 
-  const {error}=await sb.auth.updateUser({password});
+  if(!password)
+    return toast("Enter your new password.",true);
+
+  if(password.length<8)
+    return toast("Password must be at least 8 characters.",true);
+
+  if(password!==confirm)
+    return toast("The passwords do not match.",true);
+
+  const {error}=await sb.auth.updateUser({
+    password,
+    current_password:currentPassword
+  });
 
   if(error){
-    $("changePasswordStatus").innerHTML='<div class="notice errorbox">'+esc(error.message)+'</div>';
+    $("changePasswordStatus").innerHTML=
+      '<div class="notice errorbox">'+esc(error.message)+'</div>';
     return;
   }
 
+  $("currentPassword").value='';
   $("newPassword").value='';
   $("confirmNewPassword").value='';
 
