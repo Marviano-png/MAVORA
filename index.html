@@ -3224,5 +3224,20 @@ window.changeMavoraPassword=async function(){
 })();
 </script>
 
+<script>
+(function(){
+  const hash = window.location.hash || "";
+
+  if (
+    hash.includes("message=Confirmation+link+accepted") ||
+    hash.includes("message=Confirmation%20link%20accepted")
+  ) {
+    history.replaceState(null, "", "https://marviano-png.github.io/MAVORA/");
+    if(typeof toast === "function"){
+      toast("✓ Email confirmation completed.");
+    }
+  }
+})();
+</script>
 </body>
 </html>
