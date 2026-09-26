@@ -2965,6 +2965,73 @@ setInterval(()=>{
     $("phoneVerifyStatus").innerHTML=confirmed?'<div class="notice successbox">✓ Your phone is verified.</div>':'<div class="notice">Your phone is not verified yet.</div>';
     if(confirmed&&$("otpBox"))$("otpBox").classList.add('hide');
   };
+  window.changeMavoraPhone=async function(){
+  if(!currentUser)return show('auth');
+
+  const phone=$("changePhoneNumber")?.value.trim()||'';
+  if(!phone)return toast("Enter your new phone number.",true);
+
+  const {error}=await sb.auth.updateUser({phone});
+
+  if(error){
+    $("changePhoneStatus").innerHTML='<div class="notice errorbox">'+esc(error.message)+'</div>';
+    return;
+  }
+
+  localStorage.setItem('mavora_pending_phone',phone);
+
+  $("changePhoneStatus").innerHTML=
+    '<div class="notice successbox">✓ Verification code sent. Complete phone verification.</div>';
+
+  if($("phoneNumber"))$("phoneNumber").value=phone;
+  show('verifyPhone');
+  toast("OTP sent to your new phone number.");
+};
+
+window.changeMavoraEmail=async function(){
+  if(!currentUser)return show('auth');
+
+  const email=$("changeEmail")?.value.trim()||'';
+  if(!email)return toast("Enter your new email address.",true);
+
+  const {error}=await sb.auth.updateUser({email});
+
+  if(error){
+    $("changeEmailStatus").innerHTML='<div class="notice errorbox">'+esc(error.message)+'</div>';
+    return;
+  }
+
+  $("changeEmailStatus").innerHTML=
+    '<div class="notice successbox">✓ Confirmation email sent to your new email address.</div>';
+
+  toast("Check your new email to confirm the change.");
+};
+
+window.changeMavoraPassword=async function(){
+  if(!currentUser)return show('auth');
+
+  const password=$("newPassword")?.value||'';
+  const confirm=$("confirmNewPassword")?.value||'';
+
+  if(!password)return toast("Enter your new password.",true);
+  if(password.length<8)return toast("Password must be at least 8 characters.",true);
+  if(password!==confirm)return toast("The passwords do not match.",true);
+
+  const {error}=await sb.auth.updateUser({password});
+
+  if(error){
+    $("changePasswordStatus").innerHTML='<div class="notice errorbox">'+esc(error.message)+'</div>';
+    return;
+  }
+
+  $("newPassword").value='';
+  $("confirmNewPassword").value='';
+
+  $("changePasswordStatus").innerHTML=
+    '<div class="notice successbox">✓ Password changed successfully.</div>';
+
+  toast("Your password has been changed.");
+};
   window.loadPassport=async function(){
     if(!currentUser)return show('auth');
     const [{data:p},{data:contracts},{data:skills}]=await Promise.all([
