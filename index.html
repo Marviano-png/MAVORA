@@ -3028,7 +3028,10 @@ window.changeMavoraEmail=async function(){
   const email=$("changeEmail")?.value.trim()||'';
   if(!email)return toast("Enter your new email address.",true);
 
-  const {error}=await sb.auth.updateUser({email});
+ const {error}=await sb.auth.updateUser(
+  {email},
+  {emailRedirectTo:'https://marviano-png.github.io/MAVORA/'}
+);
 
   if(error){
     $("changeEmailStatus").innerHTML='<div class="notice errorbox">'+esc(error.message)+'</div>';
