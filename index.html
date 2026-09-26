@@ -185,7 +185,40 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 <section id="workroom" class="page"><div class="card"><h2>Workroom</h2><p class="muted">Each active contract can have one connected place for scope, milestones, submissions, revisions, files, messages and payment events.</p><div id="workroomList"></div></div></section>
 <section id="trust" class="page"><div class="card"><h2>Trust Center</h2><p class="muted">MAVORA shows evidence-backed signals instead of relying on a single star number.</p><div id="trustDashboard"></div></div></section>
 <section id="brief" class="page"><div class="card"><h2>Job Brief Builder</h2><p class="muted">Turn a rough idea into a clearer job before publishing it.</p><textarea id="briefIdea" placeholder="Example: I need someone to create social media designs for my business every week."></textarea><button class="btn" onclick="buildJobBrief()">Build Brief</button></div><div id="briefResult"></div></section>
-<section id="verifyPhone" class="page"><div class="card"><h2>📱 Verify your phone</h2><p class="muted">A verified phone can strengthen account recovery and trust signals.</p><input id="phoneNumber" type="tel" inputmode="tel" placeholder="+2348012345678"><button class="btn" onclick="sendPhoneOtp()">Send OTP</button><div id="otpBox" class="hide"><input id="phoneOtp" inputmode="numeric" maxlength="6" placeholder="6-digit code"><button class="btn success" onclick="verifyPhoneOtp()">Verify phone</button><button class="btn ghost" onclick="sendPhoneOtp()">Resend code</button></div><div id="phoneVerifyStatus"></div></div></section>
+<div class="card" style="margin-top:14px">
+  <h3>🔐 Account & Security</h3>
+  <p class="muted">Manage your login details and account security.</p>
+
+  <h4>📱 Change Phone Number</h4>
+  <input id="changePhoneNumber" type="tel" inputmode="tel"
+         placeholder="+2348012345678">
+  <button class="btn" type="button" onclick="changeMavoraPhone()">
+    Change Phone
+  </button>
+  <div id="changePhoneStatus"></div>
+
+  <hr style="margin:18px 0">
+
+  <h4>📧 Change Email</h4>
+  <input id="changeEmail" type="email"
+         placeholder="New email address">
+  <button class="btn" type="button" onclick="changeMavoraEmail()">
+    Change Email
+  </button>
+  <div id="changeEmailStatus"></div>
+
+  <hr style="margin:18px 0">
+
+  <h4>🔑 Change Password</h4>
+  <input id="newPassword" type="password"
+         placeholder="New password">
+  <input id="confirmNewPassword" type="password"
+         placeholder="Confirm new password">
+  <button class="btn" type="button" onclick="changeMavoraPassword()">
+    Change Password
+  </button>
+  <div id="changePasswordStatus"></div>
+</div>
 <section id="identity" class="page">
   <div class="card">
     <div class="top-actions">
