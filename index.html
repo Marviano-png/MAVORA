@@ -2545,7 +2545,7 @@ async function loadAdmin(){
     .eq("id",currentUser.id)
     .maybeSingle();
 
-  if(error||p?.role!=="admin"){
+  if(error || !["founder","admin"].includes(p?.role)){
     return $("adminArea").innerHTML=
       '<div class="notice error">Admin access required.</div>';
   }
