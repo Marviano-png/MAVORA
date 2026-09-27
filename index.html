@@ -258,7 +258,35 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 </div>
 </section>
 <section id="support" class="page"><div class="card"><h2>Support / Report</h2><select id="supportType"><option>Account</option><option>Job</option><option>Payment</option><option>Withdrawal</option><option>Safety</option><option>Dispute</option><option>Other</option></select><input id="supportSubject" placeholder="Subject"><textarea id="supportMessage" placeholder="Explain the issue and include the relevant job/transaction if available"></textarea><button class="btn" onclick="submitSupport()">Send Support Request</button><div id="supportList"></div></div></section>
-<section id="admin" class="page"><div class="card"><h2>Founder / Admin</h2><div id="adminArea"></div><div class="card">
+<section id="admin" class="page"><div class="card"><h2>Founder / Admin</h2><div id="adminArea"></div><div id="founderControlCenter" class="card">
+  <div class="top-actions">
+    <div>
+      <h3>👑 Founder Control Center</h3>
+      <p class="muted">Manage MAVORA staff roles.</p>
+    </div>
+
+    <button class="btn ghost" type="button" onclick="loadFounderUsers()">
+      Refresh
+    </button>
+  </div>
+
+  <input
+    id="founderUserSearch"
+    placeholder="Search by name or username"
+    oninput="debouncedFounderUsers()"
+  >
+
+  <div id="founderUserList">
+    <p class="muted">Click Refresh to load users.</p>
+  </div>
+
+  <div class="card">
+    <h3>📋 Staff Role History</h3>
+    <div id="founderRoleHistory">
+      <p class="muted">No role changes recorded yet.</p>
+    </div>
+  </div>
+</div><div class="card">
   <div class="top-actions">
     <div>
       <h3>🪪 Identity Verification</h3>
@@ -373,9 +401,16 @@ function show(id){
   $(id).classList.add("active");window.scrollTo(0,0);
   if(id==="dashboard")loadDashboard();if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();
   if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadMessages();if(id==="profile")loadProfile();
-  if(id==="wallet"){loadWallet();loadTransactions();loadWithdrawals()}if(id==="notifications")loadNotifications();if(id==="settings"){loadAccountPhone();loadAccountSecuritySummary();}if(id==="verifyPhone")loadPhoneStatus();if(id==="support")loadSupport();if(id==="admin"){loadAdmin();setTimeout(()=>loadAdminIdentityRequests(),300);}if(id==="saved")loadSaved();if(id==="services")loadServices();if(id==="identity")refreshIdentityStatus();
-  if(id==="post"){populateLocation("jobLga",$("jobState").value,$("jobLga").value);populateLocation("jobCity",$("jobState").value,$("jobCity").value);populateLocation("jobArea",$("jobState").value,$("jobArea").value)}
+  if(id==="wallet"){loadWallet();loadTransactions();loadWithdrawals()}if(id==="notifications")loadNotifications();if(id==="settings"){loadAccountPhone();loadAccountSecuritySummary();}if(id==="verifyPhone")loadPhoneStatus();if(id==="support")loadSupport();if(id==="admin"){
+  loadAdmin();
+  setTimeout(()=>{
+    loadAdminIdentityRequests();
+    if(window.currentProfileRole==="founder"){
+      loadFounderUsers();
+    }
+  },300);
 }
+if(id==="saved")loadSaved();if(id==="services")loadServices();if(id==="identity")refreshIdentityStatus();
 function nav(){
 
   const n=$("nav");
@@ -2586,7 +2621,265 @@ async function loadAdmin(){
       </div>
     `;
 }
+window.loadFounderUsers = async function(){
+  if(!currentUser){
+    return show("auth");
+  }
 
+  const {data:me,error:meError}=await sb
+    .from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(meError || me?.role!=="founder"){
+    const box=$("founderControlCenter");
+    if(box) box.innerHTML=
+      '<div class="notice error">Founder access required.</div>';
+    return;
+  }
+
+  const search=($("founderUserSearch")?.value||"").trim();
+
+  let query=sb
+    .from("profiles")
+    .select("id,full_name,username,role,role_updated_at")
+    .order("created_at",{ascending:false})
+    .limit(100);
+
+  if(search){
+    const safe=search.replace(/[%(),]/g," ").trim();
+
+    if(safe){
+      query=query.or(
+        `full_name.ilike.%${safe}%,username.ilike.%${safe}%`
+      );
+    }
+  }
+
+  const {data,error}=await query;
+
+  if(error){
+    console.error("Founder users:",error);
+    return $("founderUserList").innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+  }
+
+  const users=data||[];
+
+  if(!users.length){
+    $("founderUserList").innerHTML=
+      '<div class="empty">No users found.</div>';
+    return;
+  }
+
+  $("founderUserList").innerHTML=users.map(u=>{
+
+    const role=u.role||"user";
+    const isFounder=role==="founder";
+
+    let controls="";
+
+    if(isFounder){
+      controls=
+        '<span class="badge green">👑 Founder · Protected</span>';
+    }else{
+      controls=`
+        <button
+          class="btn"
+          type="button"
+          onclick="changeFounderUserRole('${u.id}','moderator')">
+          Make Moderator
+        </button>
+
+        <button
+          class="btn secondary"
+          type="button"
+          onclick="changeFounderUserRole('${u.id}','admin')">
+          Make Admin
+        </button>
+
+        ${role!=="user"
+          ? `<button
+               class="btn danger"
+               type="button"
+               onclick="changeFounderUserRole('${u.id}','user')">
+               Remove Staff Role
+             </button>`
+          : ""}
+      `;
+    }
+
+    return `
+      <div class="card">
+        <div class="top-actions">
+          <div>
+            <h3>${esc(u.full_name||"Unnamed user")}</h3>
+            <p class="muted">
+              @${esc(u.username||"no-username")}
+            </p>
+          </div>
+
+          <span class="badge">
+            ${esc(role)}
+          </span>
+        </div>
+
+        <div class="actions">
+          ${controls}
+        </div>
+
+        ${
+          u.role_updated_at
+          ? `<p class="muted small">
+               Last role update:
+               ${new Date(u.role_updated_at).toLocaleString()}
+             </p>`
+          : ""
+        }
+      </div>
+    `;
+  }).join("");
+
+  loadFounderRoleHistory();
+};
+
+
+window.changeFounderUserRole = async function(userId,newRole){
+
+  if(!currentUser){
+    return show("auth");
+  }
+
+  if(!["user","moderator","admin"].includes(newRole)){
+    return toast("Invalid staff role.",true);
+  }
+
+  const label=
+    newRole==="admin"
+      ? "Admin"
+      : newRole==="moderator"
+        ? "Moderator"
+        : "regular User";
+
+  if(!confirm(`Change this user's role to ${label}?`)){
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "manage_staff_role",
+    {
+      p_target_user_id:userId,
+      p_new_role:newRole
+    }
+  );
+
+  if(error){
+    console.error("Role change:",error);
+    return toast(error.message||"Role change failed.",true);
+  }
+
+  if(!data?.success){
+    return toast("Role change did not complete.",true);
+  }
+
+  toast(`User role changed to ${label}.`);
+
+  loadFounderUsers();
+  loadFounderRoleHistory();
+};
+
+
+window.loadFounderRoleHistory = async function(){
+
+  if(!currentUser)return;
+
+  const {data:me}=await sb
+    .from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(me?.role!=="founder")return;
+
+  const {data,error}=await sb
+    .from("staff_role_audit")
+    .select(
+      "id,target_user_id,old_role,new_role,action,created_at"
+    )
+    .order("created_at",{ascending:false})
+    .limit(50);
+
+  if(error){
+    console.error("Role history:",error);
+    return $("founderRoleHistory").innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+  }
+
+  if(!data?.length){
+    return $("founderRoleHistory").innerHTML=
+      '<div class="empty">No role changes recorded yet.</div>';
+  }
+
+  const ids=[
+    ...new Set(
+      data
+        .map(x=>x.target_user_id)
+        .filter(Boolean)
+    )
+  ];
+
+  let profiles={};
+
+  if(ids.length){
+    const {data:people}=await sb
+      .from("profiles")
+      .select("id,full_name,username")
+      .in("id",ids);
+
+    (people||[]).forEach(p=>{
+      profiles[p.id]=p;
+    });
+  }
+
+  $("founderRoleHistory").innerHTML=data.map(x=>{
+
+    const p=profiles[x.target_user_id];
+
+    return `
+      <div class="notice">
+        <strong>
+          ${esc(p?.full_name||p?.username||"Unknown user")}
+        </strong>
+
+        <br>
+
+        ${esc(x.old_role||"unknown")}
+        →
+        ${esc(x.new_role||"unknown")}
+
+        <br>
+
+        <span class="muted small">
+          ${new Date(x.created_at).toLocaleString()}
+        </span>
+      </div>
+    `;
+  }).join("");
+};
+
+
+let founderUsersTimer;
+
+window.debouncedFounderUsers=function(){
+
+  clearTimeout(founderUsersTimer);
+
+  founderUsersTimer=setTimeout(
+    ()=>loadFounderUsers(),
+    350
+  );
+};
 /* =========================
    ADMIN IDENTITY VERIFICATION
    ========================= */
