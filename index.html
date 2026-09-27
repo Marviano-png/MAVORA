@@ -397,13 +397,51 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 function toast(m,error=false){const t=$("toast");t.textContent=m;t.className="toast show";t.style.background=error?"#991b1b":"#111827";setTimeout(()=>{t.className="toast";t.style.background="#111827"},3500)}
 function show(id){
   if(!$(id))return;
+
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  $(id).classList.add("active");window.scrollTo(0,0);
-  if(id==="dashboard")loadDashboard();if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadMessages();if(id==="profile")loadProfile();
-  if(id==="wallet"){loadWallet();loadTransactions();loadWithdrawals()}if(id==="notifications")loadNotifications();if(id==="settings"){loadAccountPhone();loadAccountSecuritySummary();}if(id==="verifyPhone")loadPhoneStatus();if(id==="support")loadSupport();if(id==="admin"){
-  {loadAdmin();setTimeout(()=>loadAdminIdentityRequests(),300);}if(id==="saved")loadSaved();if(id==="services")loadServices();if(id==="identity")refreshIdentityStatus();
+  $(id).classList.add("active");
+  window.scrollTo(0,0);
+
+  if(id==="dashboard")loadDashboard();
+  if(id==="jobs")loadJobs();
+  if(id==="talent")loadTalent();
+  if(id==="myjobs")loadMyJobs();
+  if(id==="applications")loadApplications();
+  if(id==="work")loadWork();
+  if(id==="messages")loadMessages();
+  if(id==="profile")loadProfile();
+
+  if(id==="wallet"){
+    loadWallet();
+    loadTransactions();
+    loadWithdrawals();
   }
-  function nav(){
+
+  if(id==="notifications")loadNotifications();
+
+  if(id==="settings"){
+    loadAccountPhone();
+    loadAccountSecuritySummary();
+  }
+
+  if(id==="verifyPhone")loadPhoneStatus();
+  if(id==="support")loadSupport();
+
+  if(id==="admin"){
+    loadAdmin();
+    setTimeout(()=>loadAdminIdentityRequests(),300);
+  }
+
+  if(id==="saved")loadSaved();
+  if(id==="services")loadServices();
+  if(id==="identity")refreshIdentityStatus();
+
+  if(id==="post"){
+    populateLocation("jobLga",$("jobState").value,$("jobLga").value);
+    populateLocation("jobCity",$("jobState").value,$("jobCity").value);
+    populateLocation("jobArea",$("jobState").value,$("jobArea").value);
+  }
+}
 
   const n=$("nav");
 
