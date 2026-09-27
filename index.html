@@ -3366,7 +3366,7 @@ setInterval(()=>{
        <button class="secondary" onclick="show('settings')">Settings</button>
        <button class="secondary" onclick="show('support')">Support</button>`;
 
-    if(window.currentProfileRole==="admin"){
+    if(window.currentProfileRole==="founder" || window.currentProfileRole==="admin"){
       menu +=
         `<button class="secondary" onclick="show('admin')">
           Founder / Admin
