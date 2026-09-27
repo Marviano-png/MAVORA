@@ -315,6 +315,17 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
     <div id="identityStatus" class="notice">Your current identity status will appear here.</div>
     <div class="notice"><strong>How it works</strong>MAVORA records only the verification status and verification date in your profile. The actual identity-check process should run through a secure backend/KYC provider or controlled admin review.</div>
     <div class="actions"><button class="btn" onclick="refreshIdentityStatus()">Refresh status</button><button class="btn secondary" onclick="requestIdentityVerification()">Request verification</button><button class="btn ghost" onclick="show('passport')">Back to Work Passport</button></div>
+<section id="identity" class="page">
+  <div class="card">
+    <div class="top-actions">
+      <div><h2>🪪 Identity Verification</h2><p class="muted">Identity verification is an optional trust layer. Sensitive identity documents must never be stored in this HTML or exposed publicly.</p></div>
+      <span id="identityBadge" class="badge yellow">Not verified</span>
+    </div>
+    <div id="identityStatus" class="notice">Your current identity status will appear here.</div>
+    <div class="notice"><strong>How it works</strong>MAVORA records only the verification status and verification date in your profile. The actual identity-check process should run through a secure backend/KYC provider or controlled admin review.</div>
+    <div class="actions"><button class="btn" onclick="refreshIdentityStatus()">Refresh status</button><button class="btn secondary" onclick="requestIdentityVerification()">Request verification</button><button class="btn ghost" onclick="show('passport')">Back to Work Passport</button></div>
+  </div>
+</section>
   </div>
 </section>
 <section id="legal" class="page"><div class="card"><h2>MAVORA Policies</h2><h3>Terms of Service</h3><p>Use MAVORA lawfully, provide accurate information and honor agreed work and payment obligations.</p><h3>Privacy</h3><p>Only collect and expose information needed for the marketplace. Exact local addresses and sensitive payment information require additional protection.</p><h3>Acceptable Use</h3><p>No unlawful services, fraud, impersonation, harassment, prohibited transactions or attempts to bypass MAVORA protections.</p><h3>Refund & Cancellation</h3><p>Funding, cancellation, revision and refund decisions should follow the job's recorded state and applicable MAVORA policy.</p><h3>Disputes</h3><p>Keep evidence inside the relevant job or contract so support can review the timeline fairly.</p><h3>Payment Policy</h3><p>Payments should remain inside MAVORA's approved payment flow. Never request raw card details or authentication codes in chat.</p></div></section>
@@ -3241,11 +3252,222 @@ const {error}=await sb.auth.updateUser({
     $("identityBadge").textContent=verified?'✓ Verified':'Not verified';
     $("identityStatus").innerHTML=verified?`<div class="notice successbox"><strong>Identity verified</strong>Verified${data.identity_verified_at?' on '+new Date(data.identity_verified_at).toLocaleString():''}.</div>`:`<div class="notice"><strong>Identity not verified</strong>You can request verification when MAVORA's secure verification process is available.</div>`;
   };
-  window.requestIdentityVerification=function(){
-    if(!currentUser)return show('auth');
-    toast('Identity verification request recorded. The actual document check must be handled by the secure MAVORA verification/admin process.');
-    refreshIdentityStatus();
-  };
+  window.submitIdentityVerification = async function(){
+
+  if(!currentUser){
+    show('auth');
+    return;
+  }
+
+  const type = $("identityDocumentType")?.value || "";
+  const number = $("identityDocumentNumber")?.value.trim() || "";
+  const file = $("identityDocumentFile")?.files?.[0];
+
+  if(!type){
+    return toast("Select your identity document type.", true);
+  }
+
+  if(!number){
+    return toast("Enter your document number.", true);
+  }
+
+  if(!file){
+    return toast("Upload your identity document.", true);
+  }
+
+  const allowed = [
+    "image/jpeg",
+    "image/png",
+    "application/pdf"
+  ];
+
+  if(!allowed.includes(file.type)){
+    return toast("Only JPG, PNG or PDF files are allowed.", true);
+  }
+
+  if(file.size > 10 * 1024 * 1024){
+    return toast("Identity document must not exceed 10 MB.", true);
+  }
+
+  const statusBox = $("identitySubmitStatus");
+
+  if(statusBox){
+    statusBox.innerHTML =
+      `<div class="notice">Submitting your verification request...</div>`;
+  }
+
+  try {
+
+    const extension =
+      file.name.split(".").pop().toLowerCase();
+
+    const path =
+      `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
+
+    /*
+      IMPORTANT:
+      Use a PRIVATE Supabase Storage bucket called:
+      mavora-identity
+    */
+
+    const { error: uploadError } =
+      await sb.storage
+        .from("mavora-identity")
+        .upload(path, file, {
+          upsert: false,
+          contentType: file.type
+        });
+
+    if(uploadError){
+      throw uploadError;
+    }
+
+    const { error: insertError } =
+      await sb
+        .from("identity_verifications")
+        .insert({
+          user_id: currentUser.id,
+          document_type: type,
+          document_number: number,
+          document_path: path,
+          status: "pending"
+        });
+
+    if(insertError){
+      throw insertError;
+    }
+
+    if(statusBox){
+      statusBox.innerHTML = `
+        <div class="notice successbox">
+          <strong>Verification submitted.</strong>
+          <p>Your identity verification request is now pending review.</p>
+        </div>
+      `;
+    }
+
+    toast("Identity verification submitted.");
+
+    $("identityDocumentType").value = "";
+    $("identityDocumentNumber").value = "";
+    $("identityDocumentFile").value = "";
+
+    if(typeof loadIdentityHistory === "function"){
+      loadIdentityHistory();
+    }
+
+  } catch(error){
+
+    console.error("Identity verification error:", error);
+
+    if(statusBox){
+      statusBox.innerHTML =
+        `<div class="notice error">${esc(error.message)}</div>`;
+    }
+
+    toast(
+      error.message || "Unable to submit identity verification.",
+      true
+    );
+  }
+};
+window.loadIdentityHistory = async function(){
+
+  if(!currentUser){
+    return;
+  }
+
+  const box = $("identityHistory");
+
+  if(!box){
+    return;
+  }
+
+  const { data, error } = await sb
+    .from("identity_verifications")
+    .select("id,document_type,status,created_at,reviewed_at,rejection_reason")
+    .eq("user_id", currentUser.id)
+    .order("created_at", { ascending:false });
+
+  if(error){
+    box.innerHTML =
+      `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  if(!data || !data.length){
+    box.innerHTML =
+      `<div class="empty">No identity verification request yet.</div>`;
+    return;
+  }
+
+  box.innerHTML = data.map(v => {
+
+    const statusClass =
+      v.status === "verified"
+        ? "green"
+        : v.status === "rejected"
+          ? "red"
+          : "yellow";
+
+    return `
+      <div class="card">
+        <div class="top-actions">
+          <strong>${esc(v.document_type)}</strong>
+          <span class="badge ${statusClass}">
+            ${esc(v.status)}
+          </span>
+        </div>
+
+        <p class="muted">
+          Submitted:
+          ${new Date(v.created_at).toLocaleString()}
+        </p>
+
+        ${
+          v.reviewed_at
+            ? `<p class="muted">
+                Reviewed:
+                ${new Date(v.reviewed_at).toLocaleString()}
+              </p>`
+            : ""
+        }
+
+        ${
+          v.rejection_reason
+            ? `<div class="notice error">
+                <strong>Reason:</strong>
+                ${esc(v.rejection_reason)}
+              </div>`
+            : ""
+        }
+      </div>
+    `;
+
+  }).join("");
+};
+ window.requestIdentityVerification = function(){
+  if(!currentUser){
+    show('auth');
+    return;
+  }
+
+  const box = $("identitySubmitStatus");
+
+  if(box){
+    box.innerHTML = `
+      <div class="notice">
+        Complete the identity verification form above and submit your document.
+      </div>
+    `;
+  }
+
+  const type = $("identityDocumentType");
+
+  if(type){
+    type.focus();
+  }
+};
   window.loadServices=async function(){
     if(!currentUser)return show('auth');
     const {data,error}=await sb.from('services').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false});
