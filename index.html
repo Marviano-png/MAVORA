@@ -374,10 +374,38 @@ function show(id){
   if(id==="post"){populateLocation("jobLga",$("jobState").value,$("jobLga").value);populateLocation("jobCity",$("jobState").value,$("jobCity").value);populateLocation("jobArea",$("jobState").value,$("jobArea").value)}
 }
 function nav(){
- const n=$("nav");
- n.innerHTML=currentUser?
- `<button onclick="show('dashboard')">Dashboard</button><button onclick="show('jobs')">Find Work</button><button onclick="show('talent')">Hire Someone</button><button onclick="show('earn')">Earn Online</button><button onclick="show('services')">Services</button><button onclick="show('saved')">Saved</button><button onclick="show('messages')">Messages</button><button onclick="show('notifications')">Alerts</button><button onclick="show('profile')">Profile</button><button class="secondary" onclick="show('settings')">Settings</button><button class="secondary" onclick="show('support')">Support</button><button class="danger" onclick="logout()">Logout</button>`:
- `<button onclick="show('jobs')">Find Work</button><button onclick="show('talent')">Hire Someone</button><button onclick="show('earn')">Earn Online</button><button onclick="show('services')">Services</button><button onclick="show('saved')">Saved</button><button onclick="show('help')">Help</button><button onclick="show('safety')">Safety</button><button onclick="show('auth')">Login</button>`;
+
+  const n=$("nav");
+
+  if(!currentUser){
+
+    n.innerHTML=
+      `<button onclick="show('jobs')">Find Work</button>
+       <button onclick="show('talent')">Hire Someone</button>
+       <button onclick="show('earn')">Earn Online</button>
+       <button onclick="show('services')">Services</button>
+       <button onclick="show('saved')">Saved</button>
+       <button onclick="show('help')">Help</button>
+       <button onclick="show('safety')">Safety</button>
+       <button onclick="show('auth')">Login</button>`;
+
+    return;
+  }
+
+  n.innerHTML=
+    `<button onclick="show('dashboard')">Dashboard</button>
+     <button onclick="show('jobs')">Find Work</button>
+     <button onclick="show('talent')">Hire Someone</button>
+     <button onclick="show('earn')">Earn Online</button>
+     <button onclick="show('services')">Services</button>
+     <button onclick="show('saved')">Saved</button>
+     <button onclick="show('messages')">Messages</button>
+     <button onclick="show('notifications')">Alerts</button>
+     <button onclick="show('profile')">Profile</button>
+     <button class="secondary" onclick="show('settings')">Settings</button>
+     <button class="secondary" onclick="show('support')">Support</button>
+     <button class="secondary" onclick="show('admin')">Founder / Admin</button>
+     <button class="danger" onclick="logout()">Logout</button>`;
 }
 function toggleMenu(){const n=$("nav");n.style.display=n.style.display==="flex"?"none":"flex"}
 function toggleAuth(){authMode=authMode==="signup"?"login":"signup";$("authTitle").textContent=authMode==="signup"?"Create MAVORA account":"Login to MAVORA";$("signupFields").style.display=authMode==="signup"?"block":"none";$("password").autocomplete=authMode==="signup"?"new-password":"current-password"}
