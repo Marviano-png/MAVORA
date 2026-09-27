@@ -179,8 +179,27 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
   Checking your phone number...
 </div>
 
-<input id="changePhoneNumber" type="tel" inputmode="tel"
-       placeholder="+2348012345678">
+<div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
+  <select id="changePhoneCountryCode"
+          style="width:130px;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;">
+    <option value="+234" selected>🇳🇬 +234 Nigeria</option>
+    <option value="+233">🇬🇭 +233 Ghana</option>
+    <option value="+27">🇿🇦 +27 South Africa</option>
+    <option value="+44">🇬🇧 +44 United Kingdom</option>
+    <option value="+1">🇺🇸 +1 United States</option>
+    <option value="+1">🇨🇦 +1 Canada</option>
+    <option value="+91">🇮🇳 +91 India</option>
+    <option value="+971">🇦🇪 +971 UAE</option>
+    <option value="+254">🇰🇪 +254 Kenya</option>
+  </select>
+
+  <input id="changePhoneNumber"
+         type="tel"
+         inputmode="tel"
+         autocomplete="tel"
+         placeholder="8012345678"
+         style="flex:1;min-width:180px;">
+</div>
 
 <button id="phoneAccountButton" class="btn" type="button"
         onclick="changeMavoraPhone()">
@@ -3837,10 +3856,32 @@ setInterval(()=>{
 window.changeMavoraPhone=async function(){
   if(!currentUser)return show('auth');
 
-  const phone=$("changePhoneNumber")?.value.trim()||'';
+  const countryCode=$("changePhoneCountryCode")?.value||'+234';
+  let number=$("changePhoneNumber")?.value.trim()||'';
 
-  if(!phone)
+  if(!number)
     return toast("Enter your phone number.",true);
+
+  // Remove spaces, brackets, hyphens and other formatting characters.
+  number=number.replace(/[^\d+]/g,'');
+
+  // If the user entered the number with the selected country code,
+  // remove the country code before rebuilding the final number.
+  if(number.startsWith(countryCode)){
+    number=number.slice(countryCode.length);
+  }
+
+  // If the user enters a local number beginning with 0, remove the 0.
+  if(number.startsWith('0')){
+    number=number.slice(1);
+  }
+
+  // Phone number must contain digits after the country code.
+  if(!/^\d{7,15}$/.test(number)){
+    return toast("Enter a valid phone number.",true);
+  }
+
+  const phone=countryCode+number;
 
   const {error}=await sb.auth.updateUser({phone});
 
@@ -3853,7 +3894,7 @@ window.changeMavoraPhone=async function(){
   localStorage.setItem('mavora_pending_phone',phone);
 
   $("changePhoneStatus").innerHTML=
-    '<div class="notice successbox">✓ Verification code sent. Verify your phone number to complete the process.</div>';
+    '<div class="notice successbox">✓ Verification code sent to '+esc(phone)+'. Verify your phone number to complete the process.</div>';
 
   if($("phoneNumber"))$("phoneNumber").value=phone;
 
