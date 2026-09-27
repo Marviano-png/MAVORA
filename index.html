@@ -164,6 +164,9 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
     <span id="accountSecurityStatus" class="badge green">Account active</span>
   </div>
   <div id="accountSecuritySummary" class="notice">Loading account information…</div>
+  <button class="btn" type="button" onclick="initializeMavoraFounder()">
+  Initialize Founder
+</button>
 </div>
 
 <div class="card" style="margin-top:14px">
@@ -424,6 +427,33 @@ async function authSubmit(){
   if(error)return toast(error.message,true);loginUI(data.user)
  }
 }
+window.initializeMavoraFounder = async function(){
+  if(!currentUser){
+    return toast("Please log in first.",true);
+  }
+
+  const email = prompt("Enter the email of this Founder account:");
+  if(!email) return;
+
+  const {data,error} = await sb.rpc(
+    "initialize_founder",
+    {p_email: email.trim()}
+  );
+
+  if(error){
+    console.error("Founder initialization:",error);
+    return toast(error.message || "Founder setup failed.",true);
+  }
+
+  if(data?.success){
+    window.currentProfileRole = "founder";
+    toast("Founder account initialized successfully.");
+    nav();
+    setTimeout(()=>show("dashboard"),800);
+  }else{
+    toast("Founder setup did not complete.",true);
+  }
+};
 async function resetPassword(){
  const email=$("email")?.value.trim();
  if(!email)return toast("Enter your email first.",true);
