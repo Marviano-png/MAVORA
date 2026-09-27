@@ -255,7 +255,27 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 </div>
 </section>
 <section id="support" class="page"><div class="card"><h2>Support / Report</h2><select id="supportType"><option>Account</option><option>Job</option><option>Payment</option><option>Withdrawal</option><option>Safety</option><option>Dispute</option><option>Other</option></select><input id="supportSubject" placeholder="Subject"><textarea id="supportMessage" placeholder="Explain the issue and include the relevant job/transaction if available"></textarea><button class="btn" onclick="submitSupport()">Send Support Request</button><div id="supportList"></div></div></section>
-<section id="admin" class="page"><div class="card"><h2>Founder / Admin</h2><div id="adminArea"></div></div></section>
+<section id="admin" class="page"><div class="card"><h2>Founder / Admin</h2><div id="adminArea"></div><div class="card">
+  <div class="top-actions">
+    <div>
+      <h3>🪪 Identity Verification</h3>
+      <p class="muted">
+        Review identity verification requests submitted by MAVORA users.
+      </p>
+    </div>
+
+    <button class="btn ghost" type="button"
+      onclick="loadAdminIdentityRequests()">
+      Refresh
+    </button>
+  </div>
+
+  <div id="adminIdentityList">
+    <p class="muted">
+      Click Refresh to load identity verification requests.
+    </p>
+  </div>
+</div></div></section>
 </main>
 <section id="saved" class="page"><div class="card"><div class="top-actions"><div><h2>Saved</h2><p class="muted">Keep jobs and searches you want to return to.</p></div><button class="btn ghost" onclick="show('jobs')">Find more work</button></div><div class="tabs"><button class="active" onclick="loadSavedJobs()">Saved Jobs</button><button onclick="loadSavedSearches()">Saved Searches</button></div><div id="savedContent"></div></div></section>
 <section id="earn" class="page"><div class="card"><h2>Earn Money Online</h2><p class="muted">Use your skills to find legitimate opportunities. MAVORA does not promise guaranteed income, and you should never pay someone just to receive a job.</p></div><div class="grid"><div class="card"><h3>Freelance Services</h3><p>Offer typing, CV preparation, graphics, data entry, writing, design and other useful services through MAVORA.</p><button class="btn" onclick="show('jobs')">Find Paid Work</button></div><div class="card"><h3>Local Services</h3><p>Find nearby jobs such as errands, printing, delivery coordination and other lawful services.</p><button class="btn" onclick="show('jobs')">Find Local Work</button></div><div class="card"><h3>Build Your Skills</h3><p>Improve a useful skill, create samples of your work and keep your profile updated.</p><button class="btn secondary" onclick="show('profile')">Build My Profile</button></div><div class="card"><h3>Safety First</h3><p>Never share passwords or card details in chat. Be careful with requests for upfront payments, suspicious links or fake job offers.</p><button class="btn warning" onclick="show('safety')">Safety Guide</button></div></div><div class="card"><h3>Search MAVORA on the web</h3><p class="muted">MAVORA can appear in search results after public pages are crawled and indexed.</p><div class="actions"><a class="btn" href="https://www.google.com/search?q=site%3Amarviano-png.github.io%2FMAVORA+MAVORA" target="_blank" rel="noopener noreferrer">Google</a><a class="btn secondary" href="https://www.bing.com/search?q=site%3Amarviano-png.github.io%2FMAVORA+MAVORA" target="_blank" rel="noopener noreferrer">Bing</a><a class="btn ghost" href="https://duckduckgo.com/?q=site%3Amarviano-png.github.io%2FMAVORA+MAVORA" target="_blank" rel="noopener noreferrer">DuckDuckGo</a></div></div></section>
@@ -350,7 +370,7 @@ function show(id){
   $(id).classList.add("active");window.scrollTo(0,0);
   if(id==="dashboard")loadDashboard();if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();
   if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadMessages();if(id==="profile")loadProfile();
-  if(id==="wallet"){loadWallet();loadTransactions();loadWithdrawals()}if(id==="notifications")loadNotifications();if(id==="settings"){loadAccountPhone();loadAccountSecuritySummary();}if(id==="verifyPhone")loadPhoneStatus();if(id==="support")loadSupport();if(id==="admin")loadAdmin();if(id==="saved")loadSaved();if(id==="services")loadServices();if(id==="identity")refreshIdentityStatus();
+  if(id==="wallet"){loadWallet();loadTransactions();loadWithdrawals()}if(id==="notifications")loadNotifications();if(id==="settings"){loadAccountPhone();loadAccountSecuritySummary();}if(id==="verifyPhone")loadPhoneStatus();if(id==="support")loadSupport();if(id==="admin"){loadAdmin();setTimeout(()=>loadAdminIdentityRequests(),300);}if(id==="saved")loadSaved();if(id==="services")loadServices();if(id==="identity")refreshIdentityStatus();
   if(id==="post"){populateLocation("jobLga",$("jobState").value,$("jobLga").value);populateLocation("jobCity",$("jobState").value,$("jobCity").value);populateLocation("jobArea",$("jobState").value,$("jobArea").value)}
 }
 function nav(){
@@ -2509,6 +2529,330 @@ async function loadAdmin(){
     `;
 }
 
+/* =========================
+   ADMIN IDENTITY VERIFICATION
+   ========================= */
+
+window.loadAdminIdentityRequests = async function(){
+
+  if(!currentUser){
+    return show("auth");
+  }
+
+  const {data:admin,error:adminError}=await sb
+    .from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(adminError || admin?.role!=="admin"){
+    return toast("Admin access required.",true);
+  }
+
+  const box=$("adminIdentityList");
+
+  if(!box) return;
+
+  box.innerHTML=
+    '<p class="muted">Loading identity verification requests...</p>';
+
+  const {data:requests,error}=await sb
+    .from("identity_verifications")
+    .select(
+      "id,user_id,document_type,document_number,status,document_path,created_at,reviewed_at,rejection_reason"
+    )
+    .order("created_at",{ascending:false});
+
+  if(error){
+    console.error("Admin identity requests:",error);
+    return box.innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+  }
+
+  if(!requests?.length){
+    return box.innerHTML=
+      '<div class="empty">No identity verification requests found.</div>';
+  }
+
+  const userIds=[
+    ...new Set(
+      requests.map(x=>x.user_id).filter(Boolean)
+    )
+  ];
+
+  let profiles=[];
+
+  if(userIds.length){
+
+    const {data:profileData}=await sb
+      .from("profiles")
+      .select("id,full_name,username")
+      .in("id",userIds);
+
+    profiles=profileData||[];
+  }
+
+  const profileMap={};
+
+  profiles.forEach(p=>{
+    profileMap[p.id]=p;
+  });
+
+  box.innerHTML=requests.map(r=>{
+
+    const user=profileMap[r.user_id]||{};
+    const name=
+      user.full_name ||
+      user.username ||
+      "MAVORA User";
+
+    const statusClass=
+      r.status==="verified"
+        ?"green"
+        :r.status==="rejected"
+          ?"red"
+          :"yellow";
+
+    const actions=
+      r.status==="pending"
+      ?`
+        <div class="actions">
+
+          <button class="btn"
+            onclick="adminReviewIdentity('${r.id}','verified')">
+            ✓ Verify
+          </button>
+
+          <button class="btn danger"
+            onclick="adminRejectIdentity('${r.id}')">
+            Reject
+          </button>
+
+        </div>
+      `
+      :`
+        <p class="muted">
+          Reviewed ${r.reviewed_at
+            ?new Date(r.reviewed_at).toLocaleString()
+            :"—"}
+        </p>
+      `;
+
+    return `
+      <div class="card">
+
+        <div class="top-actions">
+          <div>
+            <h3>${esc(name)}</h3>
+            <p class="muted">
+              ${esc(user.username||"")}
+            </p>
+          </div>
+
+          <span class="badge ${statusClass}">
+            ${esc(r.status)}
+          </span>
+        </div>
+
+        <p>
+          <b>Document:</b>
+          ${esc(r.document_type)}
+        </p>
+
+        <p>
+          <b>Document number:</b>
+          ${esc(r.document_number)}
+        </p>
+
+        <p>
+          <b>Submitted:</b>
+          ${r.created_at
+            ?new Date(r.created_at).toLocaleString()
+            :"—"}
+        </p>
+
+        ${
+          r.rejection_reason
+          ?`
+            <div class="notice error">
+              <b>Rejection reason:</b>
+              ${esc(r.rejection_reason)}
+            </div>
+          `
+          :""
+        }
+
+        <div class="actions">
+
+          <button class="btn secondary"
+            onclick="adminViewIdentityDocument('${r.document_path}')">
+            View Document
+          </button>
+
+        </div>
+
+        ${actions}
+
+      </div>
+    `;
+
+  }).join("");
+};
+
+
+/* View private identity document using a temporary signed URL */
+
+window.adminViewIdentityDocument = async function(path){
+
+  if(!currentUser)
+    return show("auth");
+
+  const {data:admin,error:adminError}=await sb
+    .from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(adminError || admin?.role!=="admin"){
+    return toast("Admin access required.",true);
+  }
+
+  if(!path){
+    return toast("Identity document is missing.",true);
+  }
+
+  const {data,error}=await sb
+    .storage
+    .from("mavora-identity")
+    .createSignedUrl(path,300);
+
+  if(error){
+    console.error("Identity document:",error);
+    return toast(
+      error.message||"Unable to open identity document.",
+      true
+    );
+  }
+
+  if(!data?.signedUrl){
+    return toast(
+      "Could not create secure document link.",
+      true
+    );
+  }
+
+  window.open(
+    data.signedUrl,
+    "_blank",
+    "noopener,noreferrer"
+  );
+};
+
+
+/* Approve or reject identity verification */
+
+window.adminReviewIdentity = async function(
+  verificationId,
+  status,
+  rejectionReason=null
+){
+
+  if(!currentUser)
+    return show("auth");
+
+  if(status!=="verified" && status!=="rejected"){
+    return toast("Invalid verification status.",true);
+  }
+
+  if(status==="rejected" && !rejectionReason){
+    rejectionReason=prompt(
+      "Enter the reason for rejecting this identity verification:"
+    );
+
+    if(rejectionReason===null)
+      return;
+
+    rejectionReason=rejectionReason.trim();
+
+    if(!rejectionReason){
+      return toast(
+        "A rejection reason is required.",
+        true
+      );
+    }
+  }
+
+  const {data,error}=await sb.rpc(
+    "review_identity_verification",
+    {
+      p_verification_id:verificationId,
+      p_status:status,
+      p_rejection_reason:
+        status==="rejected"
+          ?rejectionReason
+          :null
+    }
+  );
+
+  if(error){
+    console.error(
+      "Identity review:",
+      error
+    );
+
+    return toast(
+      error.message||
+      "Identity review failed.",
+      true
+    );
+  }
+
+  if(data?.success===false){
+    return toast(
+      data.message||
+      "Identity review failed.",
+      true
+    );
+  }
+
+  toast(
+    status==="verified"
+      ?"Identity verification approved."
+      :"Identity verification rejected."
+  );
+
+  await loadAdminIdentityRequests();
+};
+
+
+/* Separate reject helper */
+
+window.adminRejectIdentity = async function(
+  verificationId
+){
+
+  const reason=prompt(
+    "Enter the reason for rejecting this identity verification:"
+  );
+
+  if(reason===null)
+    return;
+
+  const trimmed=reason.trim();
+
+  if(!trimmed){
+    return toast(
+      "A rejection reason is required.",
+      true
+    );
+  }
+
+  await adminReviewIdentity(
+    verificationId,
+    "rejected",
+    trimmed
+  );
+};
 /* =========================
    PAYMENT FLOW
    ========================= */
