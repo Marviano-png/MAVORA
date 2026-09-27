@@ -3106,12 +3106,22 @@ sb.auth.onAuthStateChange(
     }
 
     if(session?.user){
-      currentUser=session.user;
+  currentUser=session.user;
+
+  sb.from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle()
+    .then(({data})=>{
+      window.currentProfileRole=data?.role||"user";
       nav();
-    }else{
-      currentUser=null;
-      nav();
-    }
+    });
+
+}else{
+  currentUser=null;
+  window.currentProfileRole="user";
+  nav();
+}
   }
 );
 
@@ -3302,11 +3312,56 @@ setInterval(()=>{
     if(id==='legal'){}
   };
   window.nav=function(){
-    const n=$("nav");
-    n.innerHTML=currentUser?
-      `<button onclick="show('dashboard')">Dashboard</button><button onclick="show('jobs')">Find Work</button><button onclick="show('talent')">Hire Someone</button><button onclick="show('opportunities')">Opportunity Radar</button><button onclick="show('earn')">Earn Online</button><button onclick="show('services')">Services</button><button onclick="show('saved')">Saved</button><button onclick="show('passport')">Work Passport</button><button onclick="show('identity')">Identity</button><button onclick="show('portfolio')">Portfolio</button><button onclick="show('workroom')">Workrooms</button><button onclick="show('messages')">Messages</button><button onclick="show('notifications')">Alerts</button><button onclick="show('profile')">Profile</button><button class="secondary" onclick="show('business')">Business</button><button class="secondary" onclick="show('settings')">Settings</button><button class="secondary" onclick="show('support')">Support</button><button class="danger" onclick="logout()">Logout</button>`:
-      `<button onclick="show('jobs')">Find Work</button><button onclick="show('talent')">Hire Someone</button><button onclick="show('earn')">Earn Online</button><button onclick="show('services')">Services</button><button onclick="show('saved')">Saved</button><button onclick="show('brief')">Build a Job Brief</button><button onclick="show('help')">Help</button><button onclick="show('safety')">Safety</button><button onclick="show('auth')">Login</button>`;
-  };
+  const n=$("nav");
+  if(!n)return;
+
+  if(currentUser){
+
+    let menu =
+      `<button onclick="show('dashboard')">Dashboard</button>
+       <button onclick="show('jobs')">Find Work</button>
+       <button onclick="show('talent')">Hire Someone</button>
+       <button onclick="show('opportunities')">Opportunity Radar</button>
+       <button onclick="show('earn')">Earn Online</button>
+       <button onclick="show('services')">Services</button>
+       <button onclick="show('saved')">Saved</button>
+       <button onclick="show('passport')">Work Passport</button>
+       <button onclick="show('identity')">Identity</button>
+       <button onclick="show('portfolio')">Portfolio</button>
+       <button onclick="show('workroom')">Workrooms</button>
+       <button onclick="show('messages')">Messages</button>
+       <button onclick="show('notifications')">Alerts</button>
+       <button onclick="show('profile')">Profile</button>
+       <button class="secondary" onclick="show('business')">Business</button>
+       <button class="secondary" onclick="show('settings')">Settings</button>
+       <button class="secondary" onclick="show('support')">Support</button>`;
+
+    if(window.currentProfileRole==="admin"){
+      menu +=
+        `<button class="secondary" onclick="show('admin')">
+          Founder / Admin
+        </button>`;
+    }
+
+    menu +=
+      `<button class="danger" onclick="logout()">Logout</button>`;
+
+    n.innerHTML=menu;
+
+  }else{
+
+    n.innerHTML=
+      `<button onclick="show('jobs')">Find Work</button>
+       <button onclick="show('talent')">Hire Someone</button>
+       <button onclick="show('earn')">Earn Online</button>
+       <button onclick="show('services')">Services</button>
+       <button onclick="show('saved')">Saved</button>
+       <button onclick="show('brief')">Build a Job Brief</button>
+       <button onclick="show('help')">Help</button>
+       <button onclick="show('safety')">Safety</button>
+       <button onclick="show('auth')">Login</button>`;
+  }
+};
   window.authSubmit=async function(){
     const email=$("email").value.trim(),password=$("password").value;
     if(!email||!password)return toast("Enter email and password.",true);
