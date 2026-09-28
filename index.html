@@ -72,7 +72,79 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 <section id="safety" class="page"><div class="card"><h2>MAVORA Safety Center</h2><div class="notice"><strong>Protect your account</strong>Use a strong password and never give anyone your password, OTP, PIN or authentication code.</div><div class="notice"><strong>Keep payment inside the official flow</strong>Be cautious if someone pressures you to pay through an unrelated account or link.</div><div class="notice"><strong>Local work</strong>Exact addresses should not be exposed publicly. Share only what is needed for the relevant job stage.</div><div class="notice"><strong>Report problems</strong>Use Report User, Report Job or Support when something looks suspicious.</div><div class="actions"><button class="btn" onclick="show('support')">Report a problem</button><button class="btn ghost" onclick="show('help')">Open Help & Support</button></div></div></section>
 <section id="help" class="page"><div class="card"><h2>Help & Support</h2><p>Find answers or send a support request directly to MAVORA.</p><div class="grid"><div class="card"><h3>Account</h3><p>Login, verification, password and profile issues.</p></div><div class="card"><h3>Jobs</h3><p>Posting, applications, hiring and cancellations.</p></div><div class="card"><h3>Payments</h3><p>Deposits, held funds, refunds and withdrawals.</p></div><div class="card"><h3>Disputes</h3><p>Submit evidence and keep the conversation linked to the job.</p></div></div><button class="btn" onclick="show('support')">Contact Support</button></div></section>
 <section id="auth" class="page"><div class="card"><h2 id="authTitle">Create MAVORA account</h2><div id="authMsg"></div><label>Email</label><input id="email" type="email" autocomplete="email" maxlength="254"><label>Password</label><input id="password" type="password" autocomplete="new-password" minlength="8" maxlength="128"><div id="signupFields"><label>Full name</label><input id="fullName" autocomplete="name"><label>Username</label><input id="username" placeholder="e.g. marviano"><label>Phone number</label><input id="signupPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+2348012345678"><p class="muted small">Phone verification uses Supabase OTP. Your number is not displayed publicly unless you choose to share it.</p><label class="check"><input id="agreeTerms" type="checkbox"> I agree to use MAVORA lawfully and follow the platform rules.</label></div><button class="btn" onclick="authSubmit()">Continue</button> <button class="btn secondary" onclick="toggleAuth()">Switch login/signup</button><button class="btn ghost" onclick="resetPassword()">Forgot password?</button></div></section>
-<section id="dashboard" class="page"><div class="card top-actions"><div><h2 id="welcome">Welcome to MAVORA</h2><p class="muted">Your marketplace dashboard.</p></div><button class="btn" onclick="show('profile')">Complete Profile</button></div><div class="grid" id="stats"></div><div class="grid"><div class="card"><h3>Recommended Jobs</h3><div id="recommendedJobs"></div></div><div class="card"><h3>Quick Actions</h3><div class="actions"><button class="btn" onclick="show('jobs')">Find Work</button><button class="btn" onclick="show('post')">Post Job</button><button class="btn" onclick="show('talent')">Hire Someone</button><button class="btn" onclick="show('wallet')">Wallet</button><button class="btn secondary" onclick="show('market')">Market</button></div></div></div></section>
+<section id="dashboard" class="page">
+
+  <div class="card top-actions">
+    <div>
+      <h2 id="welcome">Welcome to MAVORA</h2>
+      <p class="muted">Your marketplace dashboard.</p>
+    </div>
+
+    <button class="btn" onclick="show('profile')">
+      Complete Profile
+    </button>
+  </div>
+
+  <div class="grid" id="stats"></div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h3>Recommended Jobs</h3>
+      <div id="recommendedJobs"></div>
+    </div>
+
+    <div class="card">
+      <h3>Quick Actions</h3>
+
+      <div class="actions">
+        <button class="btn" onclick="show('jobs')">
+          Find Work
+        </button>
+
+        <button class="btn" onclick="show('post')">
+          Post Job
+        </button>
+
+        <button class="btn" onclick="show('talent')">
+          Hire Someone
+        </button>
+
+        <button class="btn" onclick="show('wallet')">
+          Wallet
+        </button>
+
+        <button class="btn secondary" onclick="show('market')">
+          Market
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MY REPORTS -->
+  <div class="card">
+    <div class="top-actions">
+      <div>
+        <h3>My Reports</h3>
+        <p class="muted">
+          Reports you have submitted to MAVORA and their current status.
+        </p>
+      </div>
+
+      <button
+        class="btn ghost"
+        onclick="loadMyReports()">
+        Refresh
+      </button>
+    </div>
+
+    <div id="myReportsList">
+      <p class="muted">Loading your reports...</p>
+    </div>
+  </div>
+
+</section>
 <section id="jobs" class="page"><div class="card"><div class="top-actions"><h2>Find Work</h2><button class="btn ghost" onclick="saveSearch()">Save Search</button></div><div class="row"><input id="jobSearch" placeholder="Search jobs, skills or keywords" oninput="debouncedJobs()"><select id="jobType" onchange="loadJobs()"><option value="">All work modes</option><option>Remote</option><option>Physical</option><option>Delivery</option></select><select id="jobBudgetFilter" onchange="loadJobs()"><option value="">Any budget</option><option value="5000">₦5,000+</option><option value="10000">₦10,000+</option><option value="25000">₦25,000+</option><option value="50000">₦50,000+</option></select></div><div class="row"><select id="jobStateFilter" onchange="loadJobs()"><option value="">All states</option><option>Abia</option><option>Adamawa</option><option>Akwa Ibom</option><option>Anambra</option><option>Bauchi</option><option>Bayelsa</option><option>Benue</option><option>Borno</option><option>Cross River</option><option>Delta</option><option>Ebonyi</option><option>Edo</option><option>Ekiti</option><option>Enugu</option><option>Gombe</option><option>Imo</option><option>Jigawa</option><option>Kaduna</option><option>Kano</option><option>Katsina</option><option>Kebbi</option><option>Kogi</option><option>Kwara</option><option>Lagos</option><option>Nasarawa</option><option>Niger</option><option>Ogun</option><option>Ondo</option><option>Osun</option><option>Oyo</option><option>Plateau</option><option>Rivers</option><option>Sokoto</option><option>Taraba</option><option>Yobe</option><option>Zamfara</option><option>FCT</option></select><select id="jobSort" onchange="loadJobs()"><option value="newest">Newest</option><option value="budget">Highest budget</option></select></div><button class="btn secondary" onclick="useLocation()">Use my location</button> <button class="btn secondary" onclick="show('nearbyWork')">Nearby work</button> <span id="locationText" class="muted small"></span></div><div id="jobList"></div></section>
 <section id="talent" class="page"><div class="card"><h2>Hire Someone</h2><div class="row"><input id="talentSearch" placeholder="Search skills or name" oninput="loadTalent()"><select id="talentState" onchange="loadTalent()"><option value="">Any state</option><option>Abia</option><option>Adamawa</option><option>Akwa Ibom</option><option>Anambra</option><option>Bauchi</option><option>Bayelsa</option><option>Benue</option><option>Borno</option><option>Cross River</option><option>Delta</option><option>Ebonyi</option><option>Edo</option><option>Ekiti</option><option>Enugu</option><option>Gombe</option><option>Imo</option><option>Jigawa</option><option>Kaduna</option><option>Kano</option><option>Katsina</option><option>Kebbi</option><option>Kogi</option><option>Kwara</option><option>Lagos</option><option>Nasarawa</option><option>Niger</option><option>Ogun</option><option>Ondo</option><option>Osun</option><option>Oyo</option><option>Plateau</option><option>Rivers</option><option>Sokoto</option><option>Taraba</option><option>Yobe</option><option>Zamfara</option><option>FCT</option><option>Other</option></select><select id="talentAvailability" onchange="loadTalent()"><option value="">Any availability</option><option>available</option><option>busy</option></select></div></div><div id="talentList"></div></section>
 <section id="post" class="page"><div class="card"><h2>Post a Job</h2><input id="jobTitle" placeholder="Job title"><textarea id="jobDescription" placeholder="Describe exactly what you need, expected result and deadline"></textarea><div class="row"><select id="jobCategory"><option value="">Select category</option><option>Design</option><option>Writing</option><option>Typing</option><option>Technology</option><option>Marketing</option><option>Delivery</option><option>Cleaning</option><option>Repairs</option><option>Photography</option><option>Education</option><option>Other</option></select><input id="jobBudget" type="number" min="0" placeholder="Budget (₦)"></div><div class="row"><select id="jobMode"><option>Remote</option><option>Physical</option><option>Delivery</option></select><select id="jobExperience"><option>Beginner</option><option>Intermediate</option><option>Experienced</option><option>Any level</option></select></div><div class="row"><select id="jobState"><option value="">State</option><option>Lagos</option><option>Ogun</option><option>Ondo</option><option>Oyo</option><option>Osun</option><option>Other</option></select><select id="jobLga"><option value="">LGA</option></select></div><div class="row"><select id="jobCity"><option value="">City/Town</option></select><select id="jobArea"><option value="">Area/Neighborhood</option></select></div><button class="btn secondary" type="button" onclick="useLocation();if(document.getElementById('postLocationText'))document.getElementById('postLocationText').textContent='Private location enabled for nearby matching.'">Use my location</button><span id="postLocationText" class="muted small"></span><input id="jobDeadline" type="datetime-local"><textarea id="deliveryDetails" placeholder="Pickup/delivery details. Do not publish private information. This can be visible only to relevant parties."></textarea><label class="check"><input id="jobPrivate" type="checkbox"> Private/invite-only job</label><button class="btn" onclick="postJob()">Save & Publish Job</button></div></section>
@@ -435,7 +507,7 @@ function show(id){
   if(!$(id))return;
   document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
   $(id).classList.add("active");window.scrollTo(0,0);
-  if(id==="dashboard")loadDashboard();if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadMessages();if(id==="profile")loadProfile();
+ if(id==="dashboard"){loadDashboard();loadMyReports();}if(id==="jobs")loadJobs();if(id==="talent")loadTalent();if(id==="myjobs")loadMyJobs();if(id==="applications")loadApplications();if(id==="work")loadWork();if(id==="messages")loadMessages();if(id==="profile")loadProfile();
   if(id==="wallet"){loadWallet();loadTransactions();loadWithdrawals()}if(id==="notifications")loadNotifications();if(id==="settings"){loadAccountPhone();loadAccountSecuritySummary();}if(id==="verifyPhone")loadPhoneStatus();if(id==="support")loadSupport();if(id==="admin"){
   loadAdmin();
   setTimeout(()=>loadAdminIdentityRequests(),300);
@@ -575,6 +647,101 @@ async function loadDashboard(){
   <button class="card click-card" onclick="show('work')"><div>Active Work</div><div class="stat">${h.count||0}</div><div class="small muted">Open active work</div></button>`;
  const {data}=await sb.from("jobs").select("id,title,budget,job_mode,category,state,created_at").eq("status","open").order("created_at",{ascending:false}).limit(5);
  $("recommendedJobs").innerHTML=data?.length?data.map(j=>`<div class="list-item"><b>${esc(j.title)}</b><div class="small">₦${Number(j.budget||0).toLocaleString()} · ${esc(j.job_mode||"")} · ${esc(j.state||"")}</div><button class="btn" onclick="openJob('${j.id}')">View</button></div>`).join(""):"<p class='muted'>No jobs yet.</p>"
+}
+async function loadMyReports(){
+  if(!currentUser){
+    return;
+  }
+
+  const box=$("myReportsList");
+  if(!box)return;
+
+  box.innerHTML='<p class="muted">Loading your reports...</p>';
+
+  const {data,error}=await sb
+    .from("reports")
+    .select("id,target_type,target_id,reason,status,created_at,action_taken,moderator_note,reviewed_at,resolved_at")
+    .eq("reporter_id",currentUser.id)
+    .order("created_at",{ascending:false})
+    .limit(30);
+
+  if(error){
+    console.error("My Reports:",error);
+    box.innerHTML=
+      `<div class="notice error">
+        Could not load your reports: ${esc(error.message)}
+      </div>`;
+    return;
+  }
+
+  if(!data?.length){
+    box.innerHTML=
+      `<div class="empty">
+        You have not submitted any reports yet.
+      </div>`;
+    return;
+  }
+
+  const statusLabel={
+    open:"Open",
+    reviewing:"Under Review",
+    resolved:"Resolved",
+    dismissed:"Dismissed"
+  };
+
+  const statusClass={
+    open:"yellow",
+    reviewing:"yellow",
+    resolved:"green",
+    dismissed:""
+  };
+
+  box.innerHTML=data.map(r=>{
+    const status=statusLabel[r.status]||r.status||"Open";
+    const cls=statusClass[r.status]||"";
+
+    return `
+      <div class="list-item">
+        <div class="top-actions">
+          <div>
+            <b>${esc(r.reason||"Report")}</b>
+            <div class="small muted">
+              ${esc(r.target_type||"Item")} ·
+              ${r.created_at?new Date(r.created_at).toLocaleString():""}
+            </div>
+          </div>
+
+          <span class="badge ${cls}">
+            ${esc(status)}
+          </span>
+        </div>
+
+        ${
+          r.action_taken
+          ? `<p class="small">
+              <b>Action:</b> ${esc(r.action_taken)}
+            </p>`
+          : ""
+        }
+
+        ${
+          r.moderator_note
+          ? `<p class="small">
+              <b>MAVORA note:</b> ${esc(r.moderator_note)}
+            </p>`
+          : ""
+        }
+
+        ${
+          r.resolved_at
+          ? `<p class="small muted">
+              Resolved: ${new Date(r.resolved_at).toLocaleString()}
+            </p>`
+          : ""
+        }
+      </div>
+    `;
+  }).join("");
 }
 function debouncedJobs(){clearTimeout(jobTimer);jobTimer=setTimeout(loadJobs,350)}
 async function loadJobs(){
