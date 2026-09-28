@@ -4088,9 +4088,24 @@ sb.auth.onAuthStateChange(
 
   if(data.session){
     currentUser=data.session.user;
+
+    const {data:profile,error}=await sb
+      .from("profiles")
+      .select("role")
+      .eq("id",currentUser.id)
+      .maybeSingle();
+
+    window.currentProfileRole=profile?.role||"user";
+
     nav();
     show("dashboard");
+
+    if(error){
+      console.error("Profile role load error:",error);
+    }
   }else{
+    currentUser=null;
+    window.currentProfileRole="user";
     nav();
   }
 })();
