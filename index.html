@@ -4097,11 +4097,13 @@ sb.auth.onAuthStateChange(
 
     window.currentProfileRole=profile?.role||"user";
 
+    console.log("MAVORA ROLE:",window.currentProfileRole);
+
     nav();
     show("dashboard");
 
     if(error){
-      console.error("Profile role load error:",error);
+      console.error("MAVORA ROLE ERROR:",error);
     }
   }else{
     currentUser=null;
