@@ -4572,31 +4572,276 @@ window.loadIdentityHistory = async function(){
     loadBusiness();
   };
 
-  window.moderatorQueueAction=async function(type,id,status){
-    if(!currentUser)return show("auth");
-    const note=prompt("Optional moderation note:")||"";
-    const {data,error}=await sb.rpc("moderate_queue_item",{p_type:type,p_id:id,p_status:status,p_note:note.trim()});
-    if(error)return toast(error.message,true);
-    if(data?.success===false)return toast(data.message||"Moderation action failed.",true);
+ window.moderatorQueueAction=async function(type,id,status){
+  if(!currentUser)return show("auth");
+
+  let note="";
+
+  if(status==="removed"){
+    const ok=confirm(
+      "Remove this work from MAVORA?\n\n"+
+      "Use this only when the reported work violates MAVORA rules, appears fraudulent, or is a serious scam/safety issue."
+    );
+    if(!ok)return;
+
+    note=prompt("Why is this work being removed?")||"";
+    if(!note.trim()){
+      return toast("A removal reason is required.",true);
+    }
+  }else{
+    note=prompt("Optional moderation note:")||"";
+  }
+
+  const {data,error}=await sb.rpc("mavora_moderation_action",{
+    p_report_id:id,
+    p_action:status,
+    p_note:note.trim()
+  });
+
+  if(error)return toast(error.message,true);
+
+  if(data?.success===false){
+    return toast(data.message||"Moderation action failed.",true);
+  }
+
+  if(status==="reviewing"){
+    toast("Report marked as reviewing.");
+  }else if(status==="resolved"){
+    toast("Report resolved. The work remains on MAVORA.");
+  }else if(status==="removed"){
+    toast("Work removed from MAVORA.");
+  }else if(status==="dismissed"){
+    toast("Report dismissed.");
+  }else{
     toast("Moderation action saved.");
-    loadModeratorCenter();
+  }
+
+  loadModeratorCenter();
+};
+
+
+window.loadModeratorCenter=async function(){
+  if(!currentUser)return show("auth");
+
+  const {data:p,error:pErr}=await sb
+    .from("profiles")
+    .select("role")
+    .eq("id",currentUser.id)
+    .maybeSingle();
+
+  if(
+    pErr ||
+    !["founder","admin","moderator"].includes(p?.role)
+  ){
+    return toast("Staff access required.",true);
+  }
+
+  const box=$("moderatorArea");
+  if(!box)return;
+
+  const [reports,support,disputes]=await Promise.all([
+    sb.from("reports")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(30),
+
+    sb.from("support_tickets")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(30),
+
+    sb.from("disputes")
+      .select("*")
+      .order("created_at",{ascending:false})
+      .limit(30)
+  ]);
+
+  const renderReports=(res)=>{
+    if(res.error){
+      return `<div class="notice error">
+        ${escHtml(res.error.message)}
+      </div>`;
+    }
+
+    if(!res.data?.length){
+      return `<div class="empty">No reports in the queue.</div>`;
+    }
+
+    return res.data.map(x=>{
+
+      const status=x.status||"open";
+      const targetType=x.target_type||"";
+      const targetId=x.target_id||"";
+
+      return `
+        <div class="list-item">
+
+          <b>
+            ${escHtml(x.reason||"Reported item")}
+          </b>
+
+          <span class="badge">
+            ${escHtml(status)}
+          </span>
+
+          <p>
+            ${escHtml(x.description||x.reason||"No report description provided.")}
+          </p>
+
+          <div class="muted small">
+            ${x.created_at
+              ?new Date(x.created_at).toLocaleString()
+              :""
+            }
+          </div>
+
+          <div class="muted small">
+            Target:
+            ${escHtml(targetType)}
+            ${targetId
+              ?" · "+escHtml(targetId)
+              :""
+            }
+          </div>
+
+          <div class="actions">
+
+            <button
+              class="btn"
+              onclick="moderatorQueueAction('${targetType}','${x.id}','reviewing')">
+              Review
+            </button>
+
+            <button
+              class="btn success"
+              onclick="moderatorQueueAction('${targetType}','${x.id}','resolved')">
+              Resolve
+            </button>
+
+            ${
+              targetType==="job"
+              ?`
+                <button
+                  class="btn"
+                  onclick="moderatorQueueAction('${targetType}','${x.id}','removed')">
+                  Remove Work
+                </button>
+              `
+              :""
+            }
+
+            <button
+              class="btn ghost"
+              onclick="moderatorQueueAction('${targetType}','${x.id}','dismissed')">
+              Dismiss
+            </button>
+
+          </div>
+
+        </div>
+      `;
+
+    }).join("");
   };
 
-  window.loadModeratorCenter=async function(){
-    if(!currentUser)return show("auth");
-    const {data:p,error:pErr}=await sb.from("profiles").select("role").eq("id",currentUser.id).maybeSingle();
-    if(pErr||!['founder','admin','moderator'].includes(p?.role))return toast("Staff access required.",true);
-    const box=$("moderatorArea");if(!box)return;
-    const [reports,support,disputes]=await Promise.all([
-      sb.from("reports").select("*").order("created_at",{ascending:false}).limit(30),
-      sb.from("support_tickets").select("*").order("created_at",{ascending:false}).limit(30),
-      sb.from("disputes").select("*").order("created_at",{ascending:false}).limit(30)
-    ]);
-    const render=(type,title,res,empty)=>{
-      if(res.error)return `<div class="notice error">${escHtml(title)}: ${escHtml(res.error.message)}</div>`;
-      if(!res.data?.length)return `<div class="empty">${empty}</div>`;
-      return res.data.map(x=>`<div class="list-item"><b>${escHtml(x.subject||x.reason||x.type||title)}</b> <span class="badge">${escHtml(x.status||'open')}</span><p>${escHtml(x.message||x.reason||x.description||'')}</p><span class="muted small">${x.created_at?new Date(x.created_at).toLocaleString():''}</span><div class="actions"><button class="btn" onclick="moderatorQueueAction('${type}','${x.id}','reviewing')">Review</button><button class="btn success" onclick="moderatorQueueAction('${type}','${x.id}','resolved')">Resolve</button><button class="btn ghost" onclick="moderatorQueueAction('${type}','${x.id}','dismissed')">Dismiss</button></div></div>`).join('');
-    };
+
+  const render=(type,title,res,empty)=>{
+    if(res.error){
+      return `
+        <div class="notice error">
+          ${escHtml(title)}:
+          ${escHtml(res.error.message)}
+        </div>
+      `;
+    }
+
+    if(!res.data?.length){
+      return `<div class="empty">${empty}</div>`;
+    }
+
+    return res.data.map(x=>`
+      <div class="list-item">
+
+        <b>
+          ${escHtml(x.subject||x.reason||x.type||title)}
+        </b>
+
+        <span class="badge">
+          ${escHtml(x.status||"open")}
+        </span>
+
+        <p>
+          ${escHtml(
+            x.message||
+            x.reason||
+            x.description||
+            ""
+          )}
+        </p>
+
+        <span class="muted small">
+          ${
+            x.created_at
+              ?new Date(x.created_at).toLocaleString()
+              :""
+          }
+        </span>
+
+        <div class="actions">
+
+          <button
+            class="btn"
+            onclick="moderatorQueueAction('${type}','${x.id}','reviewing')">
+            Review
+          </button>
+
+          <button
+            class="btn success"
+            onclick="moderatorQueueAction('${type}','${x.id}','resolved')">
+            Resolve
+          </button>
+
+          <button
+            class="btn ghost"
+            onclick="moderatorQueueAction('${type}','${x.id}','dismissed')">
+            Dismiss
+          </button>
+
+        </div>
+
+      </div>
+    `).join("");
+  };
+
+
+  box.innerHTML=`
+
+    <div class="notice successbox">
+      <strong>Staff access active.</strong>
+      Moderation actions are recorded securely.
+    </div>
+
+    <h3>Reports</h3>
+    ${renderReports(reports)}
+
+    <h3>Support</h3>
+    ${render(
+      "support",
+      "Support",
+      support,
+      "No support tickets in the queue."
+    )}
+
+    <h3>Disputes</h3>
+    ${render(
+      "dispute",
+      "Disputes",
+      disputes,
+      "No disputes in the queue."
+    )}
+
+  `;
+};
     box.innerHTML=`<div class="notice successbox"><strong>Staff access active.</strong> Queue actions are recorded through secure server-side RPCs.</div><h3>Reports</h3>${render('report','Reports',reports,'No reports in the queue.')}<h3>Support</h3>${render('support','Support',support,'No support tickets in the queue.')}<h3>Disputes</h3>${render('dispute','Disputes',disputes,'No disputes in the queue.')}`;
   };
 
