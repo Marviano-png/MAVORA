@@ -1478,7 +1478,6 @@ async function viewApplicants(jobId){
  if(error)return toast(error.message,true);
  $("modalTitle").textContent="Applicants";$("modalBody").innerHTML=data?.length?data.map(a=>`<div class="list-item"><h3>${esc(a.profiles?.full_name||"Worker")}</h3><p>${esc(a.profiles?.professional_title||"")}</p><p>${esc(a.profiles?.skills||"")}</p><p>⭐ ${Number(a.profiles?.rating||0).toFixed(1)} · ${Number(a.profiles?.completed_jobs||0)} completed</p><p><b>Proposed:</b> ₦${Number(a.proposed_price||0).toLocaleString()}</p><p>${esc(a.proposal||"")}</p><span class="badge">${esc(a.status||"pending")}</span>${a.status==="pending"?`<button class="btn success" onclick="chooseWorker('${jobId}','${a.id}')">Choose Worker</button>`:""}</div>`).join(""):"<div class='empty'>No applicants.</div>";openModal()
 }
-
 async function loadWork(){
   if(!currentUser)return;
 
