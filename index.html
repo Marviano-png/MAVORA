@@ -1168,19 +1168,54 @@ function openApply(id){
   $("modalTitle").textContent="Apply for this job";
 
   $("modalBody").innerHTML=`
+    <div class="notice">
+      <strong>Your application profile</strong>
+      <p>
+        Your MAVORA profile, portfolio and availability information
+        can help the job poster review your application.
+      </p>
+
+      <div class="actions">
+        <button class="btn ghost" onclick="closeModal();show('portfolio')">
+          View My Portfolio
+        </button>
+
+        <button class="btn ghost" onclick="closeModal();show('profile')">
+          Update Profile
+        </button>
+      </div>
+    </div>
+
     <label>Proposed price (₦)</label>
-    <input id="applyPrice" type="number" min="0" placeholder="How much do you want to charge?">
+    <input
+      id="applyPrice"
+      type="number"
+      min="0"
+      placeholder="How much do you want to charge?"
+    >
 
     <label>Delivery time</label>
-    <input id="applyTime" placeholder="e.g. 3 days">
+    <input
+      id="applyTime"
+      placeholder="e.g. 3 days"
+    >
 
     <label>Proposal</label>
-    <textarea id="applyProposal" placeholder="Explain how you will complete the work"></textarea>
+    <textarea
+      id="applyProposal"
+      placeholder="Explain how you will complete the work"
+    ></textarea>
 
     <label>Questions (optional)</label>
-    <textarea id="applyQuestions" placeholder="Anything you need clarified"></textarea>
+    <textarea
+      id="applyQuestions"
+      placeholder="Anything you need clarified"
+    ></textarea>
 
-    <button class="btn" onclick="submitApplication('${id}')">
+    <button
+      class="btn"
+      onclick="submitApplication('${id}')"
+    >
       Submit Application
     </button>
   `;
