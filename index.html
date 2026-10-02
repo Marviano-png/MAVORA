@@ -1478,6 +1478,476 @@ async function viewApplicants(jobId){
  if(error)return toast(error.message,true);
  $("modalTitle").textContent="Applicants";$("modalBody").innerHTML=data?.length?data.map(a=>`<div class="list-item"><h3>${esc(a.profiles?.full_name||"Worker")}</h3><p>${esc(a.profiles?.professional_title||"")}</p><p>${esc(a.profiles?.skills||"")}</p><p>⭐ ${Number(a.profiles?.rating||0).toFixed(1)} · ${Number(a.profiles?.completed_jobs||0)} completed</p><p><b>Proposed:</b> ₦${Number(a.proposed_price||0).toLocaleString()}</p><p>${esc(a.proposal||"")}</p><span class="badge">${esc(a.status||"pending")}</span>${a.status==="pending"?`<button class="btn success" onclick="chooseWorker('${jobId}','${a.id}')">Choose Worker</button>`:""}</div>`).join(""):"<div class='empty'>No applicants.</div>";openModal()
 }
+async function editApplication(applicationId){
+  if(!currentUser)return show("auth");
+
+  const {data:a,error}=await sb
+    .from("applications")
+    .select(`
+      id,
+      job_id,
+      proposed_price,
+      proposal,
+      delivery_time,
+      questions,
+      status
+    `)
+    .eq("id",applicationId)
+    .eq("worker_id",currentUser.id)
+    .maybeSingle();
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!a){
+    return toast("Application not found.",true);
+  }
+
+  if(a.status!=="pending"){
+    return toast("Only pending applications can be edited.",true);
+  }
+
+  $("modalTitle").textContent="Edit Application";
+
+  $("modalBody").innerHTML=`
+    <div class="notice">
+      <strong>You can edit this application while it is still pending.</strong>
+      <p>
+        Update your proposed price, delivery time, proposal or questions.
+      </p>
+    </div>
+
+    <label>Proposed price (₦)</label>
+    <input
+      id="editApplicationPrice"
+      type="number"
+      min="0"
+      value="${Number(a.proposed_price||0)}"
+    >
+
+    <label>Delivery time</label>
+    <input
+      id="editApplicationTime"
+      value="${esc(a.delivery_time||"")}"
+      placeholder="e.g. 3 days"
+    >
+
+    <label>Proposal</label>
+    <textarea
+      id="editApplicationProposal"
+      placeholder="Explain how you will complete the work"
+    >${esc(a.proposal||"")}</textarea>
+
+    <label>Questions (optional)</label>
+    <textarea
+      id="editApplicationQuestions"
+      placeholder="Anything you need clarified"
+    >${esc(a.questions||"")}</textarea>
+
+    <div class="actions">
+
+      <button
+        class="btn"
+        onclick="saveApplicationEdit('${a.id}')"
+      >
+        Save Changes
+      </button>
+
+      <button
+        class="btn ghost"
+        onclick="closeModal()"
+      >
+        Cancel
+      </button>
+
+    </div>
+  `;
+
+  openModal();
+}
+
+
+async function saveApplicationEdit(applicationId){
+  if(!currentUser)return show("auth");
+
+  const price=Number($("editApplicationPrice").value);
+  const time=$("editApplicationTime").value.trim();
+  const proposal=$("editApplicationProposal").value.trim();
+  const questions=$("editApplicationQuestions").value.trim();
+
+  if(
+    !Number.isFinite(price) ||
+    price<0 ||
+    !proposal
+  ){
+    return toast(
+      "Enter a valid price and proposal.",
+      true
+    );
+  }
+
+  const {error}=await sb
+    .from("applications")
+    .update({
+      proposed_price:price,
+      delivery_time:time,
+      proposal:proposal,
+      questions:questions,
+      updated_at:new Date().toISOString()
+    })
+    .eq("id",applicationId)
+    .eq("worker_id",currentUser.id)
+    .eq("status","pending");
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  closeModal();
+
+  toast("Application updated.");
+
+  loadApplications();
+}
+
+
+async function loadApplications(){
+  if(!currentUser)return;
+
+  const {data,error}=await sb
+    .from("applications")
+    .select(`
+      id,
+      job_id,
+      proposed_price,
+      proposal,
+      delivery_time,
+      questions,
+      status,
+      work_status,
+      created_at,
+      updated_at,
+      jobs(
+        id,
+        title,
+        client_id,
+        budget,
+        category,
+        job_mode,
+        status,
+        deadline
+      )
+    `)
+    .eq("worker_id",currentUser.id)
+    .order("created_at",{ascending:false});
+
+  if(error){
+    $("applicationList").innerHTML=
+      `<div class="notice error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  const applications=data||[];
+
+  const clientIds=[
+    ...new Set(
+      applications
+        .map(a=>a.jobs?.client_id)
+        .filter(Boolean)
+    )
+  ];
+
+  let clients={};
+
+  if(clientIds.length){
+    const {data:profiles,error:profileError}=await sb
+      .from("profiles")
+      .select(`
+        id,
+        full_name,
+        username,
+        professional_title,
+        avatar_url,
+        rating,
+        completed_jobs
+      `)
+      .in("id",clientIds);
+
+    if(!profileError){
+      clients=Object.fromEntries(
+        (profiles||[]).map(p=>[p.id,p])
+      );
+    }
+  }
+
+  function applicationStatusLabel(status){
+    const map={
+      pending:"Pending",
+      hired:"Hired",
+      accepted:"Accepted",
+      rejected:"Rejected",
+      not_selected:"Not Selected",
+      withdrawn:"Withdrawn"
+    };
+
+    return map[status]||status||"Pending";
+  }
+
+  function applicationStatusClass(status){
+    if(status==="hired" || status==="accepted"){
+      return "green";
+    }
+
+    if(
+      status==="rejected" ||
+      status==="not_selected"
+    ){
+      return "red";
+    }
+
+    if(status==="withdrawn"){
+      return "yellow";
+    }
+
+    return "";
+  }
+
+  $("applicationList").innerHTML=applications.length
+    ? applications.map(a=>{
+
+        const j=a.jobs||{};
+        const client=clients[j.client_id]||{};
+
+        const status=a.status||"pending";
+
+        const clientName=
+          client.full_name ||
+          client.username ||
+          "MAVORA user";
+
+        const location=j.job_mode==="Remote"
+          ? "Remote"
+          : "See job details";
+
+        return `
+          <div class="card">
+
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:12px;
+                flex-wrap:wrap;
+              "
+            >
+
+              <div>
+                <h3>
+                  ${esc(j.title||"Job Application")}
+                </h3>
+
+                <p class="muted small">
+                  ${esc(j.category||"General")}
+                  ·
+                  ${esc(j.job_mode||"Remote")}
+                </p>
+              </div>
+
+              <div>
+                <span class="badge ${applicationStatusClass(status)}">
+                  ${esc(applicationStatusLabel(status))}
+                </span>
+
+                ${
+                  a.work_status
+                  ? `
+                    <span class="badge">
+                      ${esc(
+                        a.work_status==="not_started"
+                          ? "Not Started"
+                          : a.work_status==="in_progress"
+                          ? "In Progress"
+                          : a.work_status==="submitted"
+                          ? "Submitted"
+                          : a.work_status==="revision_requested"
+                          ? "Revision Requested"
+                          : a.work_status==="approved"
+                          ? "Approved"
+                          : a.work_status==="completed"
+                          ? "Completed"
+                          : a.work_status
+                      )}
+                    </span>
+                  `
+                  : ""
+                }
+              </div>
+
+            </div>
+
+            <p>
+              <b>Client:</b>
+              ${esc(clientName)}
+            </p>
+
+            ${
+              client.professional_title
+              ? `
+                <p class="muted">
+                  ${esc(client.professional_title)}
+                </p>
+              `
+              : ""
+            }
+
+            ${
+              client.rating
+              ? `
+                <p>
+                  ⭐ ${Number(client.rating).toFixed(1)}
+                  ${
+                    client.completed_jobs!=null
+                    ? ` · ${Number(client.completed_jobs)} completed jobs`
+                    : ""
+                  }
+                </p>
+              `
+              : ""
+            }
+
+            <p>
+              <b>Job budget:</b>
+              ₦${Number(j.budget||0).toLocaleString()}
+            </p>
+
+            <p>
+              <b>Your proposed price:</b>
+              ₦${Number(a.proposed_price||0).toLocaleString()}
+            </p>
+
+            <p>
+              <b>Delivery time:</b>
+              ${esc(a.delivery_time||"Not specified")}
+            </p>
+
+            <p>
+              <b>Your proposal:</b>
+              ${esc(a.proposal||"")}
+            </p>
+
+            ${
+              a.questions
+              ? `
+                <p>
+                  <b>Your questions:</b>
+                  ${esc(a.questions)}
+                </p>
+              `
+              : ""
+            }
+
+            <p class="muted small">
+              Applied:
+              ${
+                a.created_at
+                ? new Date(a.created_at).toLocaleString()
+                : "Not available"
+              }
+            </p>
+
+            ${
+              a.updated_at && a.updated_at!==a.created_at
+              ? `
+                <p class="muted small">
+                  Last updated:
+                  ${new Date(a.updated_at).toLocaleString()}
+                </p>
+              `
+              : ""
+            }
+
+            <p class="muted small">
+              Work mode:
+              ${esc(j.job_mode||"Remote")}
+              ·
+              ${esc(location)}
+            </p>
+
+            <div class="actions">
+
+              <button
+                class="btn"
+                onclick="openJob('${esc(j.id||a.job_id)}')"
+              >
+                View Job
+              </button>
+
+              ${
+                j.client_id
+                ? `
+                  <button
+                    class="btn ghost"
+                    onclick="viewTalent('${esc(j.client_id)}')"
+                  >
+                    View Client
+                  </button>
+
+                  <button
+                    class="btn ghost"
+                    onclick="startMessage('${esc(j.client_id)}')"
+                  >
+                    Message Client
+                  </button>
+                `
+                : ""
+              }
+
+              ${
+                status==="pending"
+                ? `
+                  <button
+                    class="btn ghost"
+                    onclick="editApplication('${esc(a.id)}')"
+                  >
+                    Edit Application
+                  </button>
+
+                  <button
+                    class="btn warning"
+                    onclick="withdrawApplication('${esc(a.id)}')"
+                  >
+                    Withdraw Application
+                  </button>
+                `
+                : ""
+              }
+
+              ${
+                status==="hired"
+                ? `
+                  <button
+                    class="btn success"
+                    onclick="show('work')"
+                  >
+                    Open My Work
+                  </button>
+                `
+                : ""
+              }
+
+            </div>
+
+          </div>
+        `;
+      }).join("")
+    : `
+      <div class="empty">
+        You have not applied for any jobs yet.
+      </div>
+    `;
+}
 async function loadWork(){
   if(!currentUser)return;
 
@@ -1648,7 +2118,8 @@ async function loadWork(){
       }).join("")
     : "<div class='empty'>No active work.</div>";
 }
- async function submitWork(id){
+
+  async function submitWork(id){
 
   const subEl=$("sub_"+id);
   const fileEl=$("file_"+id);
