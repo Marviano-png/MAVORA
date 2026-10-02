@@ -975,14 +975,19 @@ async function loadJobs(){
  $("jobList").innerHTML=data?.length?data.map(j=>`<div class="card job-card"><h3>${esc(j.title)}</h3><span class="badge">${esc(j.job_mode||"Remote")}</span><span class="badge">${esc(j.category||"General")}</span><span class="badge yellow">${esc(j.experience_level||"Any level")}</span><p>${esc(j.description)}</p><p><b>Budget:</b> ₦${Number(j.budget||0).toLocaleString()}</p><p class="muted">📍 ${esc([j.state,j.lga,j.city,j.area].filter(Boolean).join(" • ")||"Remote")}</p><div class="actions"><button class="btn" onclick="openJob('${j.id}')">View / Apply</button><button class="btn ghost" onclick="saveJob('${j.id}')">Save</button><button class="btn ghost" onclick="reportJob('${j.id}')">Report</button></div></div>`).join(""):"<div class='empty'>No jobs found.</div>"
 }
 async function openJob(id){
-  const {data:j,error}=await sb.from("jobs").select("*").eq("id",id).single();
+  const {data:j,error}=await sb
+    .from("jobs")
+    .select("*")
+    .eq("id",id)
+    .single();
 
   if(error)return toast(error.message,true);
 
   let poster=null;
 
   if(j.client_id){
-    const {data:p,error:profileError}=await sb.from("profiles")
+    const {data:p,error:profileError}=await sb
+      .from("profiles")
       .select("id,full_name,username,professional_title,avatar_url,gender,rating")
       .eq("id",j.client_id)
       .single();
@@ -998,6 +1003,22 @@ async function openJob(id){
   const posterPhoto=
     poster?.avatar_url ||
     "https://via.placeholder.com/70?text=M";
+
+  const isOwner=
+    !!currentUser &&
+    currentUser.id===j.client_id;
+
+  const status=j.status||"open";
+
+  const canApply=
+    !!currentUser &&
+    !isOwner &&
+    status==="open";
+
+  const location=
+    [j.state,j.lga,j.city,j.area]
+      .filter(Boolean)
+      .join(" • ") || "Remote";
 
   $("modalTitle").textContent=j.title;
 
@@ -1027,19 +1048,43 @@ async function openJob(id){
       ${
         poster?.id
         ? `<div class="actions" style="margin-top:10px;">
-             <button class="btn ghost" onclick="viewTalent('${poster.id}')">
-               View Profile
-             </button>
+             ${
+               !isOwner
+               ? `
+                 <button class="btn ghost" onclick="viewTalent('${poster.id}')">
+                   View Profile
+                 </button>
 
-             <button class="btn ghost" onclick="startMessage('${poster.id}')">
-               Message
-             </button>
+                 <button class="btn ghost" onclick="startMessage('${poster.id}')">
+                   Message
+                 </button>
+               `
+               : `<span class="badge">Your Job</span>`
+             }
            </div>`
         : ""
       }
     </div>
 
-    <p>${esc(j.description||"")}</p>
+    <div class="actions" style="margin-bottom:12px;">
+      <span class="badge">${esc(status)}</span>
+      <span class="badge">${esc(j.job_mode||"Remote")}</span>
+      <span class="badge">${esc(j.category||"General")}</span>
+    </div>
+
+    <p>
+      <b>Posted:</b>
+      ${
+        j.created_at
+        ? new Date(j.created_at).toLocaleString()
+        : "Not available"
+      }
+    </p>
+
+    <p>
+      <b>Experience:</b>
+      ${esc(j.experience_level||"Any level")}
+    </p>
 
     <p>
       <b>Budget:</b>
@@ -1047,35 +1092,69 @@ async function openJob(id){
     </p>
 
     <p>
-      <b>Mode:</b> ${esc(j.job_mode||"")}
-      ·
-      <b>Category:</b> ${esc(j.category||"")}
+      <b>Mode:</b>
+      ${esc(j.job_mode||"Remote")}
+    </p>
+
+    <p>
+      <b>Category:</b>
+      ${esc(j.category||"General")}
     </p>
 
     <p>
       <b>Location:</b>
-      ${esc(
-        [j.state,j.lga,j.city,j.area]
-          .filter(Boolean)
-          .join(" • ") || "Remote"
-      )}
+      ${esc(location)}
     </p>
 
     <p>
       <b>Deadline:</b>
-      ${j.deadline
+      ${
+        j.deadline
         ? new Date(j.deadline).toLocaleString()
-        : "Not specified"}
+        : "Not specified"
+      }
     </p>
 
+    ${
+      j.job_mode==="Delivery" && j.delivery_details
+      ? `
+        <div class="notice">
+          <strong>Delivery information</strong>
+          <p>${esc(j.delivery_details)}</p>
+        </div>
+      `
+      : ""
+    }
+
+    <div class="notice">
+      <strong>Job description</strong>
+      <p>${esc(j.description||"No description provided.")}</p>
+    </div>
+
     <div class="actions">
-      <button class="btn" onclick="openApply('${j.id}')">
-        Apply
-      </button>
+
+      ${
+        !isOwner
+        ? `<button class="btn ghost" onclick="saveJob('${j.id}')">
+             Save Job
+           </button>`
+        : ""
+      }
+
+      ${
+        canApply
+        ? `<button class="btn" onclick="openApply('${j.id}')">
+             Apply
+           </button>`
+        : isOwner
+        ? `<span class="badge">You posted this job</span>`
+        : `<span class="badge">Applications closed</span>`
+      }
 
       <button class="btn ghost" onclick="reportJob('${j.id}')">
-        Report job
+        Report Job
       </button>
+
     </div>
   `;
 
