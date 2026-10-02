@@ -1228,7 +1228,35 @@ async function submitApplication(jobId){
  const {error}=await sb.rpc("apply_for_job",{p_job_id:jobId,p_proposed_price:price,p_proposal:proposal,p_delivery_time:time,p_questions:questions});
  if(error)return toast(error.message,true);closeModal();toast("Application submitted")
 }
+async function withdrawApplication(applicationId){
+  if(!currentUser)return show("auth");
 
+  if(!confirm("Withdraw this application?")){
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "withdraw_application",
+    {
+      p_application_id:applicationId
+    }
+  );
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message||"Application could not be withdrawn.",
+      true
+    );
+  }
+
+  toast("Application withdrawn.");
+
+  loadApplications();
+}
 async function postJob(){
  if(!currentUser)return show("auth");const title=$("jobTitle").value.trim(),description=$("jobDescription").value.trim(),budget=Number($("jobBudget").value);
  if(!title||!description||!Number.isFinite(budget)||budget<0)return toast("Fill title, description and valid budget.",true);
