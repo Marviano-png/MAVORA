@@ -1136,31 +1136,10 @@ async function loadMyJobs(){
   const jobs=data||[];
 
   $("myJobList").innerHTML=jobs.length
-    ? jobs.map(j=>`
-      <div class="card">
-        <h3>${esc(j.title)}</h3>
+    ? jobs.map(j=>{
+        const status=j.status||"open";
 
-        <p>
-          <span class="badge">${esc(j.status||"open")}</span>
-          <span class="badge">${esc(j.job_mode||"Remote")}</span>
-        </p>
-
-        <p>${esc(j.description||"")}</p>
-
-        <p>
-          <b>Budget:</b>
-          ₦${Number(j.budget||0).toLocaleString()}
-        </p>
-
-        <p class="muted">
-          📍 ${esc(
-            [j.state,j.lga,j.city,j.area]
-              .filter(Boolean)
-              .join(" • ") || "Remote"
-          )}
-        </p>
-
-        <div class="actions">
+        let actions=`
           <button class="btn" onclick="openJob('${j.id}')">
             View Job
           </button>
@@ -1168,9 +1147,73 @@ async function loadMyJobs(){
           <button class="btn ghost" onclick="viewJobApplications('${j.id}')">
             Applications
           </button>
-        </div>
-      </div>
-    `).join("")
+        `;
+
+        if(status==="open"){
+          actions+=`
+            <button class="btn ghost" onclick="editJob('${j.id}')">
+              Edit Job
+            </button>
+
+            <button class="btn warning" onclick="closeJob('${j.id}')">
+              Close Job
+            </button>
+          `;
+        }
+
+        if(status==="closed"){
+          actions+=`
+            <button class="btn success" onclick="reopenJob('${j.id}')">
+              Reopen Job
+            </button>
+          `;
+        }
+
+        if(status==="awaiting_payment"){
+          actions+=`
+            <button class="btn success" onclick="payPendingJob('${j.id}')">
+              Pay for Job
+            </button>
+          `;
+        }
+
+        return `
+          <div class="card">
+            <h3>${esc(j.title)}</h3>
+
+            <p>
+              <span class="badge">${esc(status)}</span>
+              <span class="badge">${esc(j.job_mode||"Remote")}</span>
+              ${j.category?`<span class="badge">${esc(j.category)}</span>`:""}
+            </p>
+
+            <p>${esc(j.description||"")}</p>
+
+            <p>
+              <b>Budget:</b>
+              ₦${Number(j.budget||0).toLocaleString()}
+            </p>
+
+            <p class="muted">
+              📍 ${esc(
+                [j.state,j.lga,j.city,j.area]
+                  .filter(Boolean)
+                  .join(" • ") || "Remote"
+              )}
+            </p>
+
+            ${j.deadline?`
+              <p class="muted small">
+                Deadline: ${new Date(j.deadline).toLocaleString()}
+              </p>
+            `:""}
+
+            <div class="actions">
+              ${actions}
+            </div>
+          </div>
+        `;
+      }).join("")
     : `<div class="empty">You have not posted any jobs yet.</div>`;
 }
 async function payPendingJob(jobId){
