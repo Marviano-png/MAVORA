@@ -1478,52 +1478,6 @@ async function viewApplicants(jobId){
  if(error)return toast(error.message,true);
  $("modalTitle").textContent="Applicants";$("modalBody").innerHTML=data?.length?data.map(a=>`<div class="list-item"><h3>${esc(a.profiles?.full_name||"Worker")}</h3><p>${esc(a.profiles?.professional_title||"")}</p><p>${esc(a.profiles?.skills||"")}</p><p>⭐ ${Number(a.profiles?.rating||0).toFixed(1)} · ${Number(a.profiles?.completed_jobs||0)} completed</p><p><b>Proposed:</b> ₦${Number(a.proposed_price||0).toLocaleString()}</p><p>${esc(a.proposal||"")}</p><span class="badge">${esc(a.status||"pending")}</span>${a.status==="pending"?`<button class="btn success" onclick="chooseWorker('${jobId}','${a.id}')">Choose Worker</button>`:""}</div>`).join(""):"<div class='empty'>No applicants.</div>";openModal()
 }
--- MAVORA: Safe application withdrawal
-create or replace function public.withdraw_application(
-  p_application_id uuid
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path=public
-as $$
-declare
-  v_app public.applications;
-begin
-  if auth.uid() is null then
-    raise exception 'Not authenticated';
-  end if;
-
-  select *
-  into v_app
-  from public.applications
-  where id = p_application_id
-    and worker_id = auth.uid()
-  for update;
-
-  if not found then
-    raise exception 'Application not found';
-  end if;
-
-  if v_app.status <> 'pending' then
-    raise exception 'Only pending applications can be withdrawn';
-  end if;
-
-  update public.applications
-  set status = 'withdrawn',
-      updated_at = now()
-  where id = p_application_id;
-
-  return jsonb_build_object(
-    'success', true,
-    'application_id', p_application_id,
-    'status', 'withdrawn'
-  );
-end;
-$$;
-
-revoke all on function public.withdraw_application(uuid) from public;
-grant execute on function public.withdraw_application(uuid) to authenticated;
 
 async function loadWork(){
   if(!currentUser)return;
