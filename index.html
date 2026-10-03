@@ -3106,10 +3106,39 @@ async function loadConversations(){
   const messages=data||[];
 
   /*
-   * MAVORA message action sheet.
-   * Uses the existing Edit, Delete and Report functions.
+   * MAVORA: Reply to a message.
+   * Places the selected message into the composer.
    */
-  window.mavoraMessageAction=function(messageId,type,messageText){
+  window.mavoraReplyMessage=function(messageText){
+
+    const text=$("messageText");
+
+    if(!text)return;
+
+    const cleanText=messageText||"";
+
+    text.value=
+      `Replying to: "${cleanText}"\n\n`;
+
+    text.focus();
+
+    try{
+      text.setSelectionRange(
+        text.value.length,
+        text.value.length
+      );
+    }catch(_){}
+  };
+
+  /*
+   * MAVORA message action sheet.
+   * Appears after long-press or right-click.
+   */
+  window.mavoraMessageAction=function(
+    messageId,
+    type,
+    messageText
+  ){
 
     const old=$("mavoraMessageMenu");
 
@@ -3135,7 +3164,32 @@ async function loadConversations(){
       box-shadow:0 12px 40px rgba(0,0,0,.25);
     `;
 
-    const addButton=(label,action, danger=false)=>{
+    /*
+     * Show a small preview of the selected message.
+     */
+    const preview=document.createElement("div");
+
+    preview.style.cssText=`
+      padding:10px 12px;
+      margin-bottom:5px;
+      border-bottom:1px solid rgba(0,0,0,.08);
+      font-size:13px;
+      opacity:.75;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    `;
+
+    preview.textContent=
+      messageText||"Message";
+
+    menu.appendChild(preview);
+
+    const addButton=(
+      label,
+      action,
+      danger=false
+    )=>{
 
       const button=document.createElement("button");
 
@@ -3168,20 +3222,43 @@ async function loadConversations(){
     };
 
     /*
-     * Copy is available for every message.
+     * Reply
+     */
+    addButton(
+      "Reply",
+      ()=>{
+        mavoraReplyMessage(messageText);
+      }
+    );
+
+    /*
+     * Copy
      */
     addButton(
       "Copy",
       async()=>{
         try{
-          await navigator.clipboard.writeText(messageText||"");
+
+          await navigator.clipboard.writeText(
+            messageText||""
+          );
+
           toast("Message copied.");
+
         }catch(_){
-          toast("Message could not be copied.",true);
+
+          toast(
+            "Message could not be copied.",
+            true
+          );
+
         }
       }
     );
 
+    /*
+     * Actions for messages sent by the current user.
+     */
     if(type==="mine"){
 
       addButton(
@@ -3201,6 +3278,9 @@ async function loadConversations(){
 
     }else{
 
+      /*
+       * Actions for messages received from another user.
+       */
       addButton(
         "Report",
         ()=>{
@@ -3211,6 +3291,9 @@ async function loadConversations(){
 
     }
 
+    /*
+     * Close menu.
+     */
     addButton(
       "Cancel",
       ()=>{
@@ -3219,6 +3302,35 @@ async function loadConversations(){
     );
 
     document.body.appendChild(menu);
+
+    /*
+     * Close when tapping outside the menu.
+     */
+    setTimeout(()=>{
+
+      const closeOutside=(event)=>{
+
+        if(
+          menu &&
+          !menu.contains(event.target)
+        ){
+
+          menu.remove();
+
+          document.removeEventListener(
+            "pointerdown",
+            closeOutside
+          );
+
+        }
+      };
+
+      document.addEventListener(
+        "pointerdown",
+        closeOutside
+      );
+
+    },50);
   };
 
   /*
@@ -3265,34 +3377,44 @@ async function loadConversations(){
 
               oncontextmenu="
                 event.preventDefault();
+
                 mavoraMessageAction(
                   '${esc(m.id)}',
                   '${mine ? "mine" : "other"}',
-                  '${esc(text).replace(/'/g,"&#39;")}'
+                  ${JSON.stringify(text)}
                 );
+
                 return false;
               "
 
               onpointerdown="
                 this._mavoraLongPress=setTimeout(()=>{
+
                   mavoraMessageAction(
                     '${esc(m.id)}',
                     '${mine ? "mine" : "other"}',
-                    '${esc(text).replace(/'/g,"&#39;")}'
+                    ${JSON.stringify(text)}
                   );
+
                 },600);
               "
 
               onpointerup="
-                clearTimeout(this._mavoraLongPress);
+                clearTimeout(
+                  this._mavoraLongPress
+                );
               "
 
               onpointercancel="
-                clearTimeout(this._mavoraLongPress);
+                clearTimeout(
+                  this._mavoraLongPress
+                );
               "
 
               onpointerleave="
-                clearTimeout(this._mavoraLongPress);
+                clearTimeout(
+                  this._mavoraLongPress
+                );
               "
             >
 
@@ -3301,7 +3423,9 @@ async function loadConversations(){
               </div>
 
               <small class="muted">
-                ${new Date(m.created_at).toLocaleString()}
+                ${new Date(
+                  m.created_at
+                ).toLocaleString()}
               </small>
 
             </div>
@@ -3311,15 +3435,19 @@ async function loadConversations(){
       : "<div class='empty'>No messages yet.</div>";
 
     try{
+
       await sb.rpc(
         "mavora_mark_messages_read",
         {
-          p_sender_id:activeMessageRecipient
+          p_sender_id:
+            activeMessageRecipient
         }
       );
+
     }catch(_){}
 
     refreshMessageDot();
+
     return;
   }
 
@@ -3368,7 +3496,9 @@ async function loadConversations(){
       new Date(m.created_at)>
       new Date(chats[otherId].created_at)
     ){
+
       chats[otherId]=m;
+
     }
   });
 
@@ -3429,18 +3559,31 @@ async function loadConversations(){
             "
           >
 
-          <div style="flex:1;min-width:0;">
+          <div
+            style="
+              flex:1;
+              min-width:0;
+            "
+          >
 
-            <div style="
-              display:flex;
-              justify-content:space-between;
-              gap:10px;
-            ">
-              <b>${esc(name)}</b>
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                gap:10px;
+              "
+            >
+
+              <b>
+                ${esc(name)}
+              </b>
 
               <small class="muted">
-                ${new Date(last.created_at).toLocaleString()}
+                ${new Date(
+                  last.created_at
+                ).toLocaleString()}
               </small>
+
             </div>
 
             <div
@@ -3460,6 +3603,7 @@ async function loadConversations(){
 
         </div>
       `;
+
     })
     .join("");
 
@@ -3471,12 +3615,14 @@ async function loadConversations(){
 
   if(recipient){
 
-    const contactIds=Object.keys(chats);
+    const contactIds=
+      Object.keys(chats);
 
     recipient.innerHTML=
       contactIds.map(id=>{
 
-        const person=profiles[id]||{};
+        const person=
+          profiles[id]||{};
 
         const name=
           person.full_name ||
@@ -3488,8 +3634,10 @@ async function loadConversations(){
             ${esc(name)}
           </option>
         `;
+
       }).join("")
-      ||'<option value="">No contacts yet</option>';
+      ||
+      '<option value="">No contacts yet</option>';
   }
 
   refreshMessageDot();
