@@ -2980,15 +2980,12 @@ async function loadMessagePerson(userId){
 function startMessage(userId){
   if(!currentUser)return show("auth");
 
-  if(!userId){
-    return toast("Please select a user.",true);
-  }
-
   activeMessageRecipient=userId;
 
   const recipient=$("recipient");
   if(recipient){
     recipient.value=userId;
+    recipient.style.display="none";
   }
 
   const messagePerson=$("messagePerson");
@@ -3000,9 +2997,6 @@ function startMessage(userId){
       </div>`;
   }
 
-  /*
-   * Load the selected person's profile.
-   */
   sb.from("profiles")
     .select(
       "id,full_name,username,avatar_url,professional_title"
@@ -3073,36 +3067,18 @@ function startMessage(userId){
           </div>
         `;
       }
+
+      loadConversations();
+
+      const text=$("messageText");
+
+      if(text){
+        text.value="";
+        setTimeout(()=>{
+          text.focus();
+        },50);
+      }
     });
-
-  /*
-   * Keep the existing conversation loader working.
-   */
-  loadConversations();
-
-  const text=$("messageText");
-
-  if(text){
-    text.value="";
-    setTimeout(()=>{
-      text.focus();
-    },50);
-  }
-
-  /*
-   * Load only this person's conversation.
-   * This uses the existing message renderer below.
-   */
-  loadActiveMessageConversation(userId);
-}
-
-  loadMessagePerson(userId);
-  $("messageText").value="";
-  $("messageText").placeholder="Write a message to this person...";
-
-  setTimeout(()=>{
-    $("messageText")?.focus();
-  },100);
 }
 async function loadConversations(){
   if(!currentUser)return;
