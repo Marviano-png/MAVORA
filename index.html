@@ -3106,6 +3106,122 @@ async function loadConversations(){
   const messages=data||[];
 
   /*
+   * MAVORA message action sheet.
+   * Uses the existing Edit, Delete and Report functions.
+   */
+  window.mavoraMessageAction=function(messageId,type,messageText){
+
+    const old=$("mavoraMessageMenu");
+
+    if(old){
+      old.remove();
+    }
+
+    const menu=document.createElement("div");
+
+    menu.id="mavoraMessageMenu";
+
+    menu.style.cssText=`
+      position:fixed;
+      left:50%;
+      bottom:20px;
+      transform:translateX(-50%);
+      width:min(360px,calc(100% - 30px));
+      z-index:999999;
+      background:var(--card,#fff);
+      border:1px solid rgba(0,0,0,.12);
+      border-radius:16px;
+      padding:8px;
+      box-shadow:0 12px 40px rgba(0,0,0,.25);
+    `;
+
+    const addButton=(label,action, danger=false)=>{
+
+      const button=document.createElement("button");
+
+      button.type="button";
+      button.textContent=label;
+
+      button.style.cssText=`
+        display:block;
+        width:100%;
+        padding:13px 14px;
+        border:0;
+        background:transparent;
+        text-align:left;
+        border-radius:10px;
+        cursor:pointer;
+        font-size:15px;
+        color:${danger ? "#c62828" : "inherit"};
+      `;
+
+      button.onclick=()=>{
+
+        menu.remove();
+
+        if(action){
+          action();
+        }
+      };
+
+      menu.appendChild(button);
+    };
+
+    /*
+     * Copy is available for every message.
+     */
+    addButton(
+      "Copy",
+      async()=>{
+        try{
+          await navigator.clipboard.writeText(messageText||"");
+          toast("Message copied.");
+        }catch(_){
+          toast("Message could not be copied.",true);
+        }
+      }
+    );
+
+    if(type==="mine"){
+
+      addButton(
+        "Edit",
+        ()=>{
+          editMessage(messageId);
+        }
+      );
+
+      addButton(
+        "Delete",
+        ()=>{
+          deleteMessage(messageId);
+        },
+        true
+      );
+
+    }else{
+
+      addButton(
+        "Report",
+        ()=>{
+          reportMessage(messageId);
+        },
+        true
+      );
+
+    }
+
+    addButton(
+      "Cancel",
+      ()=>{
+        menu.remove();
+      }
+    );
+
+    document.body.appendChild(menu);
+  };
+
+  /*
    * If a conversation is currently open,
    * show ALL messages in that conversation.
    */
@@ -3136,13 +3252,50 @@ async function loadConversations(){
 
           return `
             <div
-              class="message"
+              class="message mavora-chat-message"
+              data-message-id="${esc(m.id)}"
               style="
                 margin:8px 0;
                 padding:10px;
                 text-align:${mine?"right":"left"};
+                user-select:none;
+                -webkit-user-select:none;
+                touch-action:pan-y;
+              "
+
+              oncontextmenu="
+                event.preventDefault();
+                mavoraMessageAction(
+                  '${esc(m.id)}',
+                  '${mine ? "mine" : "other"}',
+                  '${esc(text).replace(/'/g,"&#39;")}'
+                );
+                return false;
+              "
+
+              onpointerdown="
+                this._mavoraLongPress=setTimeout(()=>{
+                  mavoraMessageAction(
+                    '${esc(m.id)}',
+                    '${mine ? "mine" : "other"}',
+                    '${esc(text).replace(/'/g,"&#39;")}'
+                  );
+                },600);
+              "
+
+              onpointerup="
+                clearTimeout(this._mavoraLongPress);
+              "
+
+              onpointercancel="
+                clearTimeout(this._mavoraLongPress);
+              "
+
+              onpointerleave="
+                clearTimeout(this._mavoraLongPress);
               "
             >
+
               <div>
                 ${esc(text)}
               </div>
@@ -3151,42 +3304,6 @@ async function loadConversations(){
                 ${new Date(m.created_at).toLocaleString()}
               </small>
 
-              ${
-                mine && !m.deleted_at
-                ? `
-                  <div style="margin-top:5px;">
-                    <button
-                      class="btn small"
-                      onclick="editMessage('${esc(m.id)}')"
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      class="btn small"
-                      onclick="deleteMessage('${esc(m.id)}')"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                `
-                : ""
-              }
-
-              ${
-                !mine && !m.deleted_at
-                ? `
-                  <div style="margin-top:5px;">
-                    <button
-                      class="btn small"
-                      onclick="reportMessage('${esc(m.id)}')"
-                    >
-                      Report
-                    </button>
-                  </div>
-                `
-                : ""
-              }
             </div>
           `;
 
