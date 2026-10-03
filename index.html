@@ -2978,27 +2978,123 @@ async function loadMessagePerson(userId){
   `;
 }
 function startMessage(userId){
-  if(!currentUser){
-    show("auth");
-    return;
-  }
+  if(!currentUser)return show("auth");
 
-  if(!userId || userId===currentUser.id){
-    return toast("You cannot message yourself.",true);
+  if(!userId){
+    return toast("Please select a user.",true);
   }
 
   activeMessageRecipient=userId;
 
-  show("messages");
-
   const recipient=$("recipient");
-
   if(recipient){
-    recipient.innerHTML=
-      `<option value="${esc(userId)}">Direct message</option>`;
     recipient.value=userId;
-    recipient.style.display="none";
   }
+
+  const messagePerson=$("messagePerson");
+
+  if(messagePerson){
+    messagePerson.innerHTML=
+      `<div class="message-person-header">
+        <b>Loading...</b>
+      </div>`;
+  }
+
+  /*
+   * Load the selected person's profile.
+   */
+  sb.from("profiles")
+    .select(
+      "id,full_name,username,avatar_url,professional_title"
+    )
+    .eq("id",userId)
+    .maybeSingle()
+    .then(({data:p,error})=>{
+
+      if(error){
+        if(messagePerson){
+          messagePerson.innerHTML=
+            `<div class="notice error">
+              ${esc(error.message)}
+            </div>`;
+        }
+        return;
+      }
+
+      if(!p){
+        if(messagePerson){
+          messagePerson.innerHTML=
+            `<div class="notice error">
+              User not found.
+            </div>`;
+        }
+        return;
+      }
+
+      const name=
+        p.full_name ||
+        p.username ||
+        "MAVORA user";
+
+      const photo=
+        p.avatar_url ||
+        "https://via.placeholder.com/50?text=M";
+
+      if(messagePerson){
+        messagePerson.innerHTML=`
+          <div style="
+            display:flex;
+            align-items:center;
+            gap:10px;
+          ">
+            <img
+              src="${esc(photo)}"
+              style="
+                width:45px;
+                height:45px;
+                border-radius:50%;
+                object-fit:cover;
+              "
+              onerror="
+                this.src='https://via.placeholder.com/50?text=M'
+              "
+            >
+
+            <div>
+              <b>${esc(name)}</b>
+              ${
+                p.professional_title
+                ? `<div class="muted small">
+                    ${esc(p.professional_title)}
+                  </div>`
+                : ""
+              }
+            </div>
+          </div>
+        `;
+      }
+    });
+
+  /*
+   * Keep the existing conversation loader working.
+   */
+  loadConversations();
+
+  const text=$("messageText");
+
+  if(text){
+    text.value="";
+    setTimeout(()=>{
+      text.focus();
+    },50);
+  }
+
+  /*
+   * Load only this person's conversation.
+   * This uses the existing message renderer below.
+   */
+  loadActiveMessageConversation(userId);
+}
 
   loadMessagePerson(userId);
   $("messageText").value="";
@@ -3011,6 +3107,13 @@ function startMessage(userId){
 async function loadConversations(){
   if(!currentUser)return;
 
+  const list=$("conversationList");
+
+  if(!list){
+    console.error("MAVORA: conversationList element is missing.");
+    return;
+  }
+
   const {data,error}=await sb.from("messages")
     .select("*")
     .or(
@@ -3019,7 +3122,7 @@ async function loadConversations(){
     .order("created_at",{ascending:true});
 
   if(error){
-    $("conversationList").innerHTML=
+    list.innerHTML=
       `<div class="notice error">${esc(error.message)}</div>`;
     return;
   }
@@ -3033,14 +3136,16 @@ async function loadConversations(){
         m.recipient_id
       ])
     )
-  ];
+  ].filter(Boolean);
 
   let profiles={};
 
   if(userIds.length){
     const {data:people}=await sb
       .from("profiles")
-      .select("id,full_name,username,avatar_url,professional_title")
+      .select(
+        "id,full_name,username,avatar_url,professional_title"
+      )
       .in("id",userIds);
 
     (people||[]).forEach(p=>{
@@ -3048,153 +3153,152 @@ async function loadConversations(){
     });
   }
 
-  $("conversationList").innerHTML=messages.length
-    ?messages.map(m=>{
+  /*
+   * Build one chat per person.
+   * The old version displayed every message separately.
+   */
+  const chats={};
 
-        const sender=profiles[m.sender_id]||{};
+  messages.forEach(m=>{
+    const otherId=
+      m.sender_id===currentUser.id
+        ?m.recipient_id
+        :m.sender_id;
 
-        const name=
-          sender.full_name ||
-          sender.username ||
-          "MAVORA user";
+    if(!otherId)return;
 
-        const photo=
-          sender.avatar_url ||
-          "https://via.placeholder.com/50?text=M";
+    if(
+      !chats[otherId] ||
+      new Date(m.created_at)>
+      new Date(chats[otherId].created_at)
+    ){
+      chats[otherId]=m;
+    }
+  });
 
-        const mine=
-          m.sender_id===currentUser.id;
-
-        const deleted=!!m.deleted_at;
-
-        return `
-          <div class="message ${mine?"mine":""}"
-               style="margin-bottom:12px;">
-
-            <div style="
-              display:flex;
-              align-items:flex-start;
-              gap:10px;
-            ">
-
-              <img
-                src="${esc(photo)}"
-                style="
-                  width:42px;
-                  height:42px;
-                  border-radius:50%;
-                  object-fit:cover;
-                "
-                onerror="this.src='https://via.placeholder.com/50?text=M'"
-              >
-
-              <div style="flex:1;">
-
-                <b>${esc(name)}</b>
-
-                ${
-                  deleted
-                  ? `
-                    <p class="muted">
-                      Message deleted
-                    </p>
-                  `
-                  : `
-                    <p>
-                      ${esc(m.message)}
-                      ${
-                        m.edited_at
-                        ? `<span class="muted small"> · edited</span>`
-                        : ""
-                      }
-                    </p>
-                  `
-                }
-
-                <small class="muted">
-                  ${new Date(m.created_at).toLocaleString()}
-                </small>
-
-                <div class="actions" style="margin-top:6px;">
-
-                  ${
-                    mine && !deleted
-                    ? `
-                      <button
-                        class="btn ghost"
-                        onclick="editMessage('${m.id}')"
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        class="btn warning"
-                        onclick="deleteMessage('${m.id}')"
-                      >
-                        Delete
-                      </button>
-                    `
-                    : ""
-                  }
-
-                  ${
-                    !mine && !deleted
-                    ? `
-                      <button
-                        class="btn ghost"
-                        onclick="reportMessage('${m.id}')"
-                      >
-                        Report
-                      </button>
-
-                      <button
-                        class="btn warning"
-                        onclick="blockMessageUser('${m.sender_id}')"
-                      >
-                        Block
-                      </button>
-                    `
-                    : ""
-                  }
-
-                </div>
-
-              </div>
-
-            </div>
-
-          </div>
-        `;
-      }).join("")
-    : "<div class='empty'>No messages yet.</div>";
-
-  const contactIds=[
-    ...new Set(
-      messages.map(m=>
-        m.sender_id===currentUser.id
-          ?m.recipient_id
-          :m.sender_id
-      )
+  const chatRows=Object.entries(chats)
+    .sort(
+      (a,b)=>
+        new Date(b[1].created_at)-
+        new Date(a[1].created_at)
     )
-  ];
+    .map(([userId,last])=>{
 
-  $("recipient").innerHTML=
-    contactIds.map(id=>{
-
-      const person=profiles[id]||{};
+      const person=profiles[userId]||{};
 
       const name=
         person.full_name ||
         person.username ||
         "MAVORA user";
 
+      const photo=
+        person.avatar_url ||
+        "https://via.placeholder.com/50?text=M";
+
+      const preview=
+        last.deleted_at
+          ? "Message deleted"
+          : (last.message||"");
+
+      const mine=
+        last.sender_id===currentUser.id;
+
       return `
-        <option value="${esc(id)}">
-          ${esc(name)}
-        </option>
+        <div
+          class="message chat-row"
+          data-user-id="${esc(userId)}"
+          data-name="${esc(name.toLowerCase())}"
+          onclick="startMessage('${esc(userId)}')"
+          style="
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:12px;
+            margin-bottom:8px;
+            cursor:pointer;
+          "
+        >
+
+          <img
+            src="${esc(photo)}"
+            style="
+              width:50px;
+              height:50px;
+              border-radius:50%;
+              object-fit:cover;
+              flex-shrink:0;
+            "
+            onerror="
+              this.src='https://via.placeholder.com/50?text=M'
+            "
+          >
+
+          <div style="flex:1;min-width:0;">
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:10px;
+            ">
+              <b>${esc(name)}</b>
+
+              <small class="muted">
+                ${new Date(last.created_at).toLocaleString()}
+              </small>
+            </div>
+
+            <div
+              class="muted"
+              style="
+                margin-top:4px;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+              "
+            >
+              ${mine ? "You: " : ""}
+              ${esc(preview)}
+            </div>
+
+          </div>
+
+        </div>
       `;
-    }).join("")
-    ||'<option value="">No contacts yet</option>';
+    })
+    .join("");
+
+  list.innerHTML=
+    chatRows ||
+    "<div class='empty'>No messages yet.</div>";
+
+  /*
+   * Keep the existing recipient selector working.
+   * Other existing MAVORA code may still use it.
+   */
+  const recipient=$("recipient");
+
+  if(recipient){
+
+    const contactIds=Object.keys(chats);
+
+    recipient.innerHTML=
+      contactIds.map(id=>{
+
+        const person=profiles[id]||{};
+
+        const name=
+          person.full_name ||
+          person.username ||
+          "MAVORA user";
+
+        return `
+          <option value="${esc(id)}">
+            ${esc(name)}
+          </option>
+        `;
+      }).join("")
+      ||'<option value="">No contacts yet</option>';
+  }
 
   try{
     await sb.rpc(
