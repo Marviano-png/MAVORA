@@ -271,7 +271,106 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
 <section id="myjobs" class="page"><div class="card"><div class="top-actions"><h2>My Jobs</h2><button class="btn" onclick="show('post')">Post another</button></div><div id="myJobList"></div></div></section>
 <section id="applications" class="page"><div class="card"><h2>My Applications</h2><div id="applicationList"></div></div></section>
 <section id="work" class="page"><div class="card"><h2>My Work</h2><div id="workList"></div></div></section>
-<section id="messages" class="page"><div class="card"><h2>Messages</h2><div id="messagePerson"></div><div id="conversationList"></div><select id="recipient"></select><textarea id="messageText" placeholder="Write a message"></textarea><button class="btn" onclick="sendMessage()">Send</button></div></section>
+<section id="messages" class="page">
+  <div class="card messages-card">
+
+    <div id="messagesListView">
+      <div class="messages-topbar">
+        <div>
+          <h2>Messages</h2>
+          <p class="muted">Your conversations</p>
+        </div>
+
+        <button
+          class="btn"
+          type="button"
+          onclick="openNewMessage()">
+          + New Message
+        </button>
+      </div>
+
+      <input
+        id="messageSearch"
+        class="input"
+        type="search"
+        placeholder="Search conversations..."
+        oninput="filterMessageChats(this.value)"
+        autocomplete="off">
+
+      <div id="conversationList"></div>
+    </div>
+
+    <div id="messagesChatView" style="display:none;">
+
+      <div class="message-chat-header">
+        <button
+          class="btn"
+          type="button"
+          onclick="closeMessageChat()">
+          ← Back
+        </button>
+
+        <div id="messagePerson"></div>
+
+        <button
+          class="btn"
+          type="button"
+          onclick="openMessageChatMenu()">
+          ⋮
+        </button>
+      </div>
+
+      <div id="messageChatStatus"></div>
+
+      <div id="messageConversation"></div>
+
+      <div id="messageComposer">
+        <textarea
+          id="messageText"
+          placeholder="Write a message..."
+          rows="2"
+          autocomplete="off"></textarea>
+
+        <button
+          class="btn"
+          type="button"
+          onclick="sendMessage()">
+          Send
+        </button>
+      </div>
+
+    </div>
+
+    <div id="newMessageView" style="display:none;">
+
+      <div class="message-chat-header">
+        <button
+          class="btn"
+          type="button"
+          onclick="closeNewMessage()">
+          ← Back
+        </button>
+
+        <div>
+          <h3>New Message</h3>
+          <p class="muted">Choose a MAVORA user to start a conversation.</p>
+        </div>
+      </div>
+
+      <input
+        id="newMessageSearch"
+        class="input"
+        type="search"
+        placeholder="Search MAVORA users..."
+        oninput="searchMessageUsers(this.value)"
+        autocomplete="off">
+
+      <div id="newMessageResults"></div>
+
+    </div>
+
+  </div>
+</section>
 <section id="profile" class="page">
   <div class="card">
     <div class="top-actions">
