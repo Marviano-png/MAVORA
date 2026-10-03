@@ -1587,21 +1587,26 @@ async function saveApplicationEdit(applicationId){
     );
   }
 
-  const {error}=await sb
-    .from("applications")
-    .update({
-      proposed_price:price,
-      delivery_time:time,
-      proposal:proposal,
-      questions:questions,
-      updated_at:new Date().toISOString()
-    })
-    .eq("id",applicationId)
-    .eq("worker_id",currentUser.id)
-    .eq("status","pending");
+  const {data,error}=await sb.rpc(
+    "edit_application",
+    {
+      p_application_id:applicationId,
+      p_proposed_price:price,
+      p_proposal:proposal,
+      p_delivery_time:time,
+      p_questions:questions
+    }
+  );
 
   if(error){
     return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message||"Application could not be updated.",
+      true
+    );
   }
 
   closeModal();
@@ -1610,7 +1615,6 @@ async function saveApplicationEdit(applicationId){
 
   loadApplications();
 }
-
 
 async function loadApplications(){
   if(!currentUser)return;
