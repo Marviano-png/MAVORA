@@ -2902,8 +2902,9 @@ async function loadConversations(){
     .order("created_at",{ascending:true});
 
   if(error){
-    return $("conversationList").innerHTML=
+    $("conversationList").innerHTML=
       `<div class="notice error">${esc(error.message)}</div>`;
+    return;
   }
 
   const messages=data||[];
@@ -2920,14 +2921,10 @@ async function loadConversations(){
   let profiles={};
 
   if(userIds.length){
-    const {data:people,error:profileError}=await sb
+    const {data:people}=await sb
       .from("profiles")
-      .select("id,full_name,username,avatar_url")
+      .select("id,full_name,username,avatar_url,professional_title")
       .in("id",userIds);
-
-    if(profileError){
-      console.error("Profile loading:",profileError);
-    }
 
     (people||[]).forEach(p=>{
       profiles[p.id]=p;
@@ -2948,31 +2945,111 @@ async function loadConversations(){
           sender.avatar_url ||
           "https://via.placeholder.com/50?text=M";
 
+        const mine=
+          m.sender_id===currentUser.id;
+
+        const deleted=!!m.deleted_at;
+
         return `
-          <div class="message ${m.sender_id===currentUser.id?"mine":""}">
-            <div style="display:flex;align-items:center;gap:10px;">
+          <div class="message ${mine?"mine":""}"
+               style="margin-bottom:12px;">
+
+            <div style="
+              display:flex;
+              align-items:flex-start;
+              gap:10px;
+            ">
 
               <img
                 src="${esc(photo)}"
-                style="width:42px;height:42px;border-radius:50%;object-fit:cover;"
+                style="
+                  width:42px;
+                  height:42px;
+                  border-radius:50%;
+                  object-fit:cover;
+                "
                 onerror="this.src='https://via.placeholder.com/50?text=M'"
               >
 
-              <div>
+              <div style="flex:1;">
+
                 <b>${esc(name)}</b>
 
-                <p>${esc(m.message)}</p>
+                ${
+                  deleted
+                  ? `
+                    <p class="muted">
+                      Message deleted
+                    </p>
+                  `
+                  : `
+                    <p>
+                      ${esc(m.message)}
+                      ${
+                        m.edited_at
+                        ? `<span class="muted small"> · edited</span>`
+                        : ""
+                      }
+                    </p>
+                  `
+                }
 
-                <small>
+                <small class="muted">
                   ${new Date(m.created_at).toLocaleString()}
                 </small>
+
+                <div class="actions" style="margin-top:6px;">
+
+                  ${
+                    mine && !deleted
+                    ? `
+                      <button
+                        class="btn ghost"
+                        onclick="editMessage('${m.id}')"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        class="btn warning"
+                        onclick="deleteMessage('${m.id}')"
+                      >
+                        Delete
+                      </button>
+                    `
+                    : ""
+                  }
+
+                  ${
+                    !mine && !deleted
+                    ? `
+                      <button
+                        class="btn ghost"
+                        onclick="reportMessage('${m.id}')"
+                      >
+                        Report
+                      </button>
+
+                      <button
+                        class="btn warning"
+                        onclick="blockMessageUser('${m.sender_id}')"
+                      >
+                        Block
+                      </button>
+                    `
+                    : ""
+                  }
+
+                </div>
+
               </div>
 
             </div>
+
           </div>
         `;
       }).join("")
-    :"<div class='empty'>No messages yet.</div>";
+    : "<div class='empty'>No messages yet.</div>";
 
   const contactIds=[
     ...new Set(
@@ -3001,12 +3078,49 @@ async function loadConversations(){
       `;
     }).join("")
     ||'<option value="">No contacts yet</option>';
+
+  try{
+    await sb.rpc(
+      "mavora_mark_messages_read",
+      {
+        p_sender_id:
+          activeMessageRecipient || null
+      }
+    );
+  }catch(_){}
+
+ if(typeof refreshMessageDot==="function"){
+  refreshMessageDot();
 }
 function loadMessages(){
   if(!currentUser)return;
-  loadConversations();
-}
 
+  loadConversations();
+
+  refreshMessageDot();
+
+  const box=$("messageText");
+
+  if(
+    box &&
+    !box.dataset.mavoraEnterReady
+  ){
+    box.dataset.mavoraEnterReady="1";
+
+    box.addEventListener(
+      "keydown",
+      function(e){
+        if(
+          e.key==="Enter" &&
+          !e.shiftKey
+        ){
+          e.preventDefault();
+          sendMessage();
+        }
+      }
+    );
+  }
+}
 function cleanText(value,maxLength=4000){
   return String(value||"")
     .replace(/\u0000/g,"")
@@ -3018,49 +3132,287 @@ async function sendMessage(){
     return show("auth");
   }
 
-  const to=activeMessageRecipient || $("recipient").value;
-  const text=cleanText($("messageText").value,4000);
-  const blockedPatterns = [
-  /\b(?:\+234|234|0)(?:70|80|81|90|91)\d{8}\b/i,
-  /\b\d{9,18}\b/,
-  /\b(?:account\s*number|acct\s*no|bank\s*account|account\s*details)\b/i,
-  /\b(?:send\s*money|transfer\s*money|pay\s*me|send\s*to|make\s*payment)\b/i,
-  /\b(?:paystack\.com|flutterwave\.com|moniepoint|opay|palmpay)\b/i
-];
+  const to=
+    activeMessageRecipient ||
+    $("recipient").value;
 
-if(blockedPatterns.some(pattern=>pattern.test(text))){
-  return toast("Payment or personal contact details cannot be shared in MAVORA messages.",true);
-}
+  const text=
+    cleanText(
+      $("messageText").value,
+      4000
+    );
 
   if(!to){
-    return toast("No message recipient selected.",true);
+    return toast(
+      "No message recipient selected.",
+      true
+    );
   }
 
   if(!text){
-    return toast("Write a message first.",true);
+    return toast(
+      "Write a message first.",
+      true
+    );
   }
 
   if(to===currentUser.id){
-    return toast("You cannot message yourself.",true);
+    return toast(
+      "You cannot message yourself.",
+      true
+    );
   }
 
-  const {error}=await sb.from("messages").insert({
-    sender_id:currentUser.id,
-    recipient_id:to,
-    message:text
-  });
+  const {data,error}=await sb.rpc(
+    "mavora_send_message",
+    {
+      p_recipient_id:to,
+      p_message:text
+    }
+  );
 
   if(error){
-    return toast(error.message,true);
+    return toast(
+      error.message,
+      true
+    );
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message ||
+      "Message could not be sent.",
+      true
+    );
   }
 
   $("messageText").value="";
 
   toast("Message sent.");
 
+  await loadConversations();
+
+  refreshMessageDot();
+}
+async function refreshMessageDot(){
+  if(!currentUser)return;
+
+  const dot=$("messageDot");
+
+  if(!dot)return;
+
+  const {data,error}=await sb.rpc(
+    "mavora_unread_message_count"
+  );
+
+  if(error){
+    dot.classList.add("hide");
+    return;
+  }
+
+  dot.classList.toggle(
+    "hide",
+    !(Number(data)>0)
+  );
+}
+
+
+async function editMessage(messageId){
+  if(!currentUser)return show("auth");
+
+  const text=prompt(
+    "Edit your message:"
+  );
+
+  if(text===null)return;
+
+  const clean=cleanText(
+    text,
+    4000
+  );
+
+  if(!clean){
+    return toast(
+      "Write a message first.",
+      true
+    );
+  }
+
+  const {data,error}=await sb.rpc(
+    "mavora_edit_message",
+    {
+      p_message_id:messageId,
+      p_message:clean
+    }
+  );
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message ||
+      "Message could not be edited.",
+      true
+    );
+  }
+
+  toast("Message edited.");
+
   loadConversations();
 }
 
+
+async function deleteMessage(messageId){
+  if(!currentUser)return show("auth");
+
+  if(!confirm(
+    "Delete this message?"
+  )){
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "mavora_delete_message",
+    {
+      p_message_id:messageId
+    }
+  );
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message ||
+      "Message could not be deleted.",
+      true
+    );
+  }
+
+  toast("Message deleted.");
+
+  loadConversations();
+}
+
+
+async function reportMessage(messageId){
+  if(!currentUser)return show("auth");
+
+  const reason=prompt(
+    "Why are you reporting this message?"
+  );
+
+  if(reason===null)return;
+
+  const clean=cleanText(
+    reason,
+    1000
+  );
+
+  if(!clean){
+    return toast(
+      "Please provide a reason.",
+      true
+    );
+  }
+
+  const {data,error}=await sb.rpc(
+    "mavora_report_message",
+    {
+      p_message_id:messageId,
+      p_reason:clean
+    }
+  );
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message ||
+      "Message could not be reported.",
+      true
+    );
+  }
+
+  toast(
+    "Message reported to MAVORA."
+  );
+}
+
+
+async function blockMessageUser(userId){
+  if(!currentUser)return show("auth");
+
+  if(!confirm(
+    "Block this user from messaging you?"
+  )){
+    return;
+  }
+
+  const {data,error}=await sb.rpc(
+    "mavora_block_message_user",
+    {
+      p_user_id:userId
+    }
+  );
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message ||
+      "User could not be blocked.",
+      true
+    );
+  }
+
+  toast(
+    "User blocked."
+  );
+
+  if(activeMessageRecipient===userId){
+    activeMessageRecipient="";
+    $("messagePerson").innerHTML="";
+    $("messageText").value="";
+  }
+
+  loadConversations();
+}
+
+
+async function unblockMessageUser(userId){
+  if(!currentUser)return show("auth");
+
+  const {data,error}=await sb.rpc(
+    "mavora_unblock_message_user",
+    {
+      p_user_id:userId
+    }
+  );
+
+  if(error){
+    return toast(error.message,true);
+  }
+
+  if(!data?.success){
+    return toast(
+      data?.message ||
+      "User could not be unblocked.",
+      true
+    );
+  }
+
+  toast("User unblocked.");
+
+  loadMessagePerson(userId);
+}
 async function loadNotifications(){
   const {data,error}=await sb.from("notifications")
     .select("*")
