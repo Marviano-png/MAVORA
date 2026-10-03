@@ -3105,6 +3105,111 @@ async function loadConversations(){
 
   const messages=data||[];
 
+  /*
+   * If a conversation is currently open,
+   * show ALL messages in that conversation.
+   */
+  if(activeMessageRecipient){
+
+    const conversationMessages=messages.filter(m=>
+      (
+        m.sender_id===currentUser.id &&
+        m.recipient_id===activeMessageRecipient
+      ) ||
+      (
+        m.sender_id===activeMessageRecipient &&
+        m.recipient_id===currentUser.id
+      )
+    );
+
+    list.innerHTML=
+      conversationMessages.length
+      ? conversationMessages.map(m=>{
+
+          const mine=
+            m.sender_id===currentUser.id;
+
+          const text=
+            m.deleted_at
+              ? "Message deleted"
+              : (m.message||"");
+
+          return `
+            <div
+              class="message"
+              style="
+                margin:8px 0;
+                padding:10px;
+                text-align:${mine?"right":"left"};
+              "
+            >
+              <div>
+                ${esc(text)}
+              </div>
+
+              <small class="muted">
+                ${new Date(m.created_at).toLocaleString()}
+              </small>
+
+              ${
+                mine && !m.deleted_at
+                ? `
+                  <div style="margin-top:5px;">
+                    <button
+                      class="btn small"
+                      onclick="editMessage('${esc(m.id)}')"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      class="btn small"
+                      onclick="deleteMessage('${esc(m.id)}')"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                `
+                : ""
+              }
+
+              ${
+                !mine && !m.deleted_at
+                ? `
+                  <div style="margin-top:5px;">
+                    <button
+                      class="btn small"
+                      onclick="reportMessage('${esc(m.id)}')"
+                    >
+                      Report
+                    </button>
+                  </div>
+                `
+                : ""
+              }
+            </div>
+          `;
+
+        }).join("")
+      : "<div class='empty'>No messages yet.</div>";
+
+    try{
+      await sb.rpc(
+        "mavora_mark_messages_read",
+        {
+          p_sender_id:activeMessageRecipient
+        }
+      );
+    }catch(_){}
+
+    refreshMessageDot();
+    return;
+  }
+
+  /*
+   * No conversation is open:
+   * show one chat row per person.
+   */
   const userIds=[
     ...new Set(
       messages.flatMap(m=>[
@@ -3117,6 +3222,7 @@ async function loadConversations(){
   let profiles={};
 
   if(userIds.length){
+
     const {data:people}=await sb
       .from("profiles")
       .select(
@@ -3129,13 +3235,10 @@ async function loadConversations(){
     });
   }
 
-  /*
-   * Build one chat per person.
-   * The old version displayed every message separately.
-   */
   const chats={};
 
   messages.forEach(m=>{
+
     const otherId=
       m.sender_id===currentUser.id
         ?m.recipient_id
@@ -3247,10 +3350,6 @@ async function loadConversations(){
     chatRows ||
     "<div class='empty'>No messages yet.</div>";
 
-  /*
-   * Keep the existing recipient selector working.
-   * Other existing MAVORA code may still use it.
-   */
   const recipient=$("recipient");
 
   if(recipient){
@@ -3275,16 +3374,6 @@ async function loadConversations(){
       }).join("")
       ||'<option value="">No contacts yet</option>';
   }
-
-  try{
-    await sb.rpc(
-      "mavora_mark_messages_read",
-      {
-        p_sender_id:
-          activeMessageRecipient || null
-      }
-    );
-  }catch(_){}
 
   refreshMessageDot();
 }
