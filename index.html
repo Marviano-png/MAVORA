@@ -332,12 +332,47 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
       <div id="messageComposer" class="mavora-message-composer">
         <input id="messageFile" type="file" class="hide" accept="image/*,.pdf,.doc,.docx,.txt" onchange="mavoraShowAttachment(this.files&&this.files[0])">
         <button class="mavora-attach-btn" type="button" onclick="document.getElementById('messageFile')?.click()" title="Attach a file" aria-label="Attach a file">＋</button>
-        <textarea id="messageText" placeholder="Write a message..." rows="2" autocomplete="off" maxlength="5000"></textarea>
-        <button class="btn" type="button" onclick="sendMessage()">Send</button>
-      </div>
-      <div id="messageAttachmentPreview" class="muted small"></div>
-      <div class="muted small mavora-message-safety-note">Never send your password, OTP, PIN or card details in a MAVORA message.</div>
-    </div>
+        <div class="mavora-message-composer">
+  <div id="messageReplyPreview" class="message-reply-preview" hidden></div>
+
+  <div class="message-compose-row">
+    <button
+      type="button"
+      id="messageAttachBtn"
+      class="btn"
+      title="Attach file"
+      aria-label="Attach file"
+    >＋</button>
+
+    <input
+      type="file"
+      id="messageFile"
+      hidden
+      multiple
+      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+    >
+
+    <textarea
+      id="messageText"
+      placeholder="Write a message..."
+      rows="2"
+      autocomplete="off"
+      maxlength="5000"
+    ></textarea>
+
+    <button
+      class="btn"
+      type="button"
+      onclick="sendMessage()"
+    >Send</button>
+  </div>
+
+  <div id="messageAttachmentPreview" class="muted small"></div>
+
+  <div class="muted small mavora-message-safety-note">
+    Never send your password, OTP, PIN, card details, payment details or private contact information in a MAVORA message.
+  </div>
+</div>
 
     <div id="newMessageView" class="mavora-new-message-view" style="display:none;">
       <div class="message-chat-header">
