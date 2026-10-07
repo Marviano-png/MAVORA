@@ -314,8 +314,7 @@ textarea{min-height:105px;resize:vertical}label{font-weight:700;font-size:13px}.
       <div class="mavora-message-tabs" role="tablist" aria-label="Message views">
         <button type="button" class="active" data-message-tab="all" onclick="mavoraSetMessageTab('all')">All</button>
         <button type="button" data-message-tab="unread" onclick="mavoraSetMessageTab('unread')">Unread</button>
-        <button type="button" data-message-tab="archived" onclick="mavoraSetMessageTab('archived')">Archived</button>
-      </div>
+        </div>
       <div id="conversationList" class="mavora-conversation-list" aria-live="polite"></div>
       <div id="mavoraConversationMore" class="mavora-conversation-more"></div>
     </div>
